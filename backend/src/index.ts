@@ -18,14 +18,19 @@ import "./types/session";
 import mountNotificationEndpoints from "./handlers/notifications";
 
 const dbName = env.mongo_db_name;
-const mongoUri = `mongodb://${env.mongo_host}/${dbName}`;
-const mongoClientOptions = {
-  authSource: "admin",
-  auth: {
-    username: env.mongo_user,
-    password: env.mongo_password,
-  },
-};
+
+const mongoUri =
+  env.mongodb_uri || `mongodb://${env.mongo_host}/${dbName}`;
+
+const mongoClientOptions = env.mongodb_uri
+  ? {}
+  : {
+      authSource: "admin",
+      auth: {
+        username: env.mongo_user,
+        password: env.mongo_password,
+      },
+    };
 
 //
 // I. Initialize and set up the express app and various middlewares and packages:
