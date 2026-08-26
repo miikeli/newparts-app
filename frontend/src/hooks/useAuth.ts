@@ -18,6 +18,9 @@ export const useAuth = () => {
   const signInUser = useCallback(async (authResult: AuthResult) => {
     try {
       await axiosClient.post("/user/signin", { authResult });
+
+      sessionStorage.setItem("pi_access_token", authResult.accessToken);
+
       setUser(authResult.user);
       setShowSignIn(false);
     } catch (err) {
@@ -42,6 +45,9 @@ export const useAuth = () => {
     setIsLoading(true);
     try {
       await axiosClient.get("/user/signout");
+
+      sessionStorage.removeItem("pi_access_token");
+
       setUser(null);
     } catch (err) {
       console.error("Error signing out:", err);

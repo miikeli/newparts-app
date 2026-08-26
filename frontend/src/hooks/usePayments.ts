@@ -19,7 +19,17 @@ export const usePayments = ({ isAuthenticated, onRequireAuth }: UsePaymentsArgs)
 
   const onReadyForServerApproval = useCallback(async (paymentId: string) => {
     try {
-      await axiosClient.post("/payments/approve", { paymentId });
+      const accessToken = sessionStorage.getItem("pi_access_token");
+
+      await axiosClient.post(
+        "/payments/approve",
+        { paymentId },
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }
+      );
     } catch (err) {
       console.error("Error approving payment:", err);
     }
