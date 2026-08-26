@@ -73,8 +73,8 @@ app.use(
 
     cookie: {
       httpOnly: true,
-      secure: env.node_env === "production",
-      sameSite: env.node_env === "production" ? "none" : "lax",
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
     },
 
     store: MongoStore.create({
