@@ -63,11 +63,20 @@ app.use(
 app.use(cookieParser());
 
 // Use sessions:
+app.set("trust proxy", 1);
+
 app.use(
   session({
     secret: env.session_secret,
     resave: false,
     saveUninitialized: false,
+
+    cookie: {
+      httpOnly: true,
+      secure: env.node_env === "production",
+      sameSite: env.node_env === "production" ? "none" : "lax",
+    },
+
     store: MongoStore.create({
       mongoUrl: mongoUri,
       mongoOptions: mongoClientOptions,
