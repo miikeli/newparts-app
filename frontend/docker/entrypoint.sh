@@ -13,5 +13,9 @@ fi
 # Use semicolons to avoid conflicts with slashes in URLs
 sed -i 's;\$\$BACKEND_URL\$\$;'"${BACKEND_URL}"';g' /var/www/webapp/index.html
 
+if [ -n "$DOMAIN_VALIDATION_KEY" ]; then
+  printf '%s' "$DOMAIN_VALIDATION_KEY" > /var/www/webapp/validation-key.txt
+fi
+
 # Start nginx
 nginx -g "daemon off;"
