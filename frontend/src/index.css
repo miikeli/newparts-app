@@ -1148,6 +1148,44 @@ button {
   color: #64748b;
 }
 
+.account-admin-action {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-top: 16px;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  background: #eff6ff;
+  padding: 14px;
+}
+
+.account-admin-action div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.account-admin-action strong {
+  color: #142033;
+}
+
+.account-admin-action span {
+  color: #52657a;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.account-admin-action a {
+  flex: 0 0 auto;
+  border-radius: 8px;
+  background: #1268d6;
+  color: #ffffff;
+  padding: 11px 14px;
+  font-weight: 900;
+  text-decoration: none;
+}
+
 .text-action {
   border: 0;
   background: transparent;
@@ -2217,9 +2255,14 @@ button {
   }
 
   .address-form-actions,
-  .cart-address-section > div:first-child {
+  .cart-address-section > div:first-child,
+  .account-admin-action {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .account-admin-action a {
+    text-align: center;
   }
 
   .spec-list div {

@@ -29,6 +29,13 @@ type AddressesResponse = {
   defaultShippingAddressId?: string;
 };
 
+type AdminMeResponse = {
+  admin: {
+    uid: string;
+    username?: string;
+  };
+};
+
 const emptyAddress: AddressFormState = {
   label: "",
   fullName: "",
@@ -98,6 +105,7 @@ const AccountPage = () => {
   const [fieldErrors, setFieldErrors] = useState<{ [field: string]: string }>({});
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
@@ -125,6 +133,7 @@ const AccountPage = () => {
 
   useEffect(() => {
     if (!isAuthenticated) {
+      setIsAdmin(false);
       return;
     }
 
@@ -150,6 +159,18 @@ const AccountPage = () => {
           profileResponse.data.profile.defaultShippingAddressId ?? "",
         );
         setOrders(ordersResponse.data.orders);
+
+        try {
+          await axiosClient.get<AdminMeResponse>("/admin/me", getPiAuthConfig());
+
+          if (isMounted) {
+            setIsAdmin(true);
+          }
+        } catch {
+          if (isMounted) {
+            setIsAdmin(false);
+          }
+        }
       } catch {
         if (isMounted) {
           setError("Nije moguće učitati podatke profila.");
@@ -365,6 +386,15 @@ const AccountPage = () => {
                     </dd>
                   </div>
                 </dl>
+                {isAdmin && (
+                  <div className="account-admin-action">
+                    <div>
+                      <strong>Admin pristup</strong>
+                      <span>Upravljanje katalogom i proizvodima.</span>
+                    </div>
+                    <Link to="/admin">Admin panel</Link>
+                  </div>
+                )}
               </section>
             )}
 
