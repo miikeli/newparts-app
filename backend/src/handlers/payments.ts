@@ -1,11 +1,15 @@
 import axios from "axios";
 import { Router, type Request } from "express";
-import { findCatalogProductById } from "../data/products";
+import { type Collection } from "mongodb";
 import {
   validateShippingAddress,
   type ShippingAddress,
 } from "../models/shippingAddress";
 import platformAPIClient from "../services/platformAPIClient";
+import {
+  findProductForPayment,
+  type ProductDocument,
+} from "../services/products";
 import {
   loadProfileView,
   toShippingSnapshot,
@@ -315,13 +319,19 @@ const normalizePaymentItems = (metadata: unknown): NormalizedPaymentItems => {
   );
 };
 
-const buildOrderItems = (metadata: unknown) => {
+const buildOrderItems = async (
+  metadata: unknown,
+  productCollection?: Collection<ProductDocument>,
+) => {
   const normalized = normalizePaymentItems(metadata);
   const orderItems: OrderItem[] = [];
   let totalUnits = 0;
 
-  normalized.items.forEach((item) => {
-    const product = findCatalogProductById(item.productId);
+  for (const item of normalized.items) {
+    const product = await findProductForPayment(
+      productCollection,
+      item.productId,
+    );
 
     if (!product) {
       throw validationError(
@@ -367,7 +377,7 @@ const buildOrderItems = (metadata: unknown) => {
         "Cart total exceeds safe integer precision",
       );
     }
-  });
+  }
 
   return {
     metadataType: normalized.metadataType,
@@ -844,6 +854,9 @@ export default function mountPaymentsEndpoints(router: Router) {
       const payment = await getPlatformPayment(paymentId);
       const orderCollection = app.locals.orderCollection;
       const profileCollection = app.locals.userProfileCollection;
+      const productCollection = app.locals.productCollection as
+        | Collection<ProductDocument>
+        | undefined;
 
       if (!profileCollection) {
         return res.status(503).json({
@@ -863,7 +876,7 @@ export default function mountPaymentsEndpoints(router: Router) {
         );
       }
 
-      const order = buildOrderItems(payment.metadata);
+      const order = await buildOrderItems(payment.metadata, productCollection);
       const paymentAmount = readPaymentAmount(payment);
 
       if (order.totalUnits !== paymentAmount) {

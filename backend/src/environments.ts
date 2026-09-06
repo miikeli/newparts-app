@@ -25,6 +25,7 @@ interface Environment {
   mongo_password: string;
   frontend_url: string;
   mongodb_uri: string;
+  admin_pi_uids: string;
 }
 
 const env: Environment = {
@@ -38,6 +39,7 @@ const env: Environment = {
   mongo_password: process.env.MONGODB_PASSWORD || "",
   frontend_url: process.env.FRONTEND_URL || "http://localhost:3314",
   mongodb_uri: process.env.MONGODB_URI || "",
+  admin_pi_uids: process.env.ADMIN_PI_UIDS || "",
 };
 
 export default env;

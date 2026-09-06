@@ -8,9 +8,14 @@ import logger from "morgan";
 import MongoStore from "connect-mongo";
 import { MongoClient } from "mongodb";
 import env from "./environments";
+import mountAdminEndpoints from "./handlers/admin";
 import mountOrderEndpoints from "./handlers/orders";
 import mountPaymentsEndpoints from "./handlers/payments";
 import mountUserEndpoints from "./handlers/users";
+import {
+  seedProductsCollection,
+  type ProductDocument,
+} from "./services/products";
 
 // We must import typedefs for ts-node-dev to pick them up when they change (even though tsc would supposedly
 // have no problem here)
@@ -111,6 +116,11 @@ const notificationRouter = express.Router();
 mountNotificationEndpoints(notificationRouter);
 app.use("/notifications", notificationRouter);
 
+// Admin endpoints under /admin:
+const adminRouter = express.Router();
+mountAdminEndpoints(adminRouter);
+app.use("/admin", adminRouter);
+
 // Hello World page to check everything works:
 app.get("/", async (_, res) => {
   res.status(200).send({ message: "Hello, World!" });
@@ -124,6 +134,7 @@ const start = async () => {
     const db = client.db(dbName);
     const orderCollection = db.collection("orders");
     const userProfileCollection = db.collection("user_profiles");
+    const productCollection = db.collection<ProductDocument>("products");
     await orderCollection.createIndex({ pi_payment_id: 1 }, { unique: true });
     await orderCollection.createIndex(
       { orderNumber: 1 },
@@ -133,8 +144,14 @@ const start = async () => {
       },
     );
     await userProfileCollection.createIndex({ pi_uid: 1 }, { unique: true });
+    await productCollection.createIndex({ id: 1 }, { unique: true });
+    await productCollection.createIndex({ sku: 1 }, { unique: true });
+    await productCollection.createIndex({ category: 1 });
+    await productCollection.createIndex({ brand: 1 });
+    await seedProductsCollection(productCollection);
     app.locals.orderCollection = orderCollection;
     app.locals.userProfileCollection = userProfileCollection;
+    app.locals.productCollection = productCollection;
     app.locals.userCollection = db.collection("users");
     console.log("Connected to MongoDB");
 
