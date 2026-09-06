@@ -25,6 +25,7 @@ type CartContextValue = {
   addItem: (productId: string, quantity?: number) => void;
   removeItem: (productId: string) => void;
   updateQuantity: (productId: string, quantity: number) => void;
+  clearCart: () => void;
 };
 
 const CartContext = createContext<CartContextValue | undefined>(undefined);
@@ -81,6 +82,10 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     );
   }, []);
 
+  const clearCart = useCallback(() => {
+    setLines([]);
+  }, []);
+
   const value = useMemo<CartContextValue>(() => {
     const items = lines.flatMap((line) => {
       const product = findProductById(line.productId);
@@ -104,8 +109,9 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       addItem,
       removeItem,
       updateQuantity,
+      clearCart,
     };
-  }, [addItem, lines, removeItem, updateQuantity]);
+  }, [addItem, clearCart, lines, removeItem, updateQuantity]);
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 };

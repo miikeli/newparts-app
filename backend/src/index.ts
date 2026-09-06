@@ -116,7 +116,9 @@ const start = async () => {
   try {
     const client = await MongoClient.connect(mongoUri, mongoClientOptions);
     const db = client.db(dbName);
-    app.locals.orderCollection = db.collection("orders");
+    const orderCollection = db.collection("orders");
+    await orderCollection.createIndex({ pi_payment_id: 1 }, { unique: true });
+    app.locals.orderCollection = orderCollection;
     app.locals.userCollection = db.collection("users");
     console.log("Connected to MongoDB on: ", mongoUri);
 

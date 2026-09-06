@@ -1,10 +1,88 @@
-import { Link } from "react-router-dom";
+import { useState } from "react";
+import { Link, useOutletContext } from "react-router-dom";
+import type { StoreOutletContext } from "../components/StoreShell";
 import { useCart } from "../context/CartContext";
+import { usePayments } from "../hooks/usePayments";
 
 const formatPi = (amount: number) => `${amount.toFixed(2)} Test-Pi`;
 
+type CompletedOrderSummary = {
+  paymentId: string;
+  txid: string;
+  itemCount: number;
+  total: number;
+  items: {
+    productId: string;
+    name: string;
+    quantity: number;
+    lineSubtotal: number;
+  }[];
+};
+
 const CartPage = () => {
-  const { items, itemCount, subtotal, removeItem, updateQuantity } = useCart();
+  const {
+    items,
+    itemCount,
+    subtotal,
+    removeItem,
+    updateQuantity,
+    clearCart,
+  } = useCart();
+  const { isAuthenticated, requireAuth } = useOutletContext<StoreOutletContext>();
+  const { orderCart, isLoading } = usePayments({
+    isAuthenticated,
+    onRequireAuth: requireAuth,
+  });
+  const [checkoutError, setCheckoutError] = useState("");
+  const [completedOrder, setCompletedOrder] =
+    useState<CompletedOrderSummary | null>(null);
+
+  const handleCheckout = () => {
+    setCheckoutError("");
+    setCompletedOrder(null);
+
+    if (!isAuthenticated) {
+      setCheckoutError("Prijavi se kroz Pi Browser prije plaćanja korpe.");
+      requireAuth();
+      return;
+    }
+
+    if (items.length === 0) {
+      return;
+    }
+
+    const paymentItems = items.map((item) => ({
+      productId: item.productId,
+      quantity: item.quantity,
+    }));
+    const orderSnapshot: Omit<CompletedOrderSummary, "paymentId" | "txid"> = {
+      itemCount,
+      total: subtotal,
+      items: items.map((item) => ({
+        productId: item.productId,
+        name: item.product.name,
+        quantity: item.quantity,
+        lineSubtotal: item.lineSubtotal,
+      })),
+    };
+
+    orderCart(Number(subtotal.toFixed(7)), itemCount, paymentItems, {
+      onCompleted: (paymentId, txid) => {
+        setCompletedOrder({
+          paymentId,
+          txid,
+          ...orderSnapshot,
+        });
+        clearCart();
+      },
+      onCancelled: () => {
+        setCheckoutError("Plaćanje je otkazano. Korpa je ostala nepromijenjena.");
+      },
+      onError: (message) => {
+        setCheckoutError(message);
+      },
+    });
+  };
 
   return (
     <main className="cart-page">
@@ -20,11 +98,45 @@ const CartPage = () => {
           </Link>
         </div>
 
-        {items.length === 0 ? (
+        {completedOrder ? (
+          <section className="cart-success">
+            <strong>Narudžba je plaćena</strong>
+            <p>
+              Plaćanje je završeno za {completedOrder.itemCount} artikala u
+              iznosu {formatPi(completedOrder.total)}.
+            </p>
+            <dl>
+              <div>
+                <dt>Payment ID</dt>
+                <dd>{completedOrder.paymentId}</dd>
+              </div>
+              <div>
+                <dt>TXID</dt>
+                <dd>{completedOrder.txid}</dd>
+              </div>
+            </dl>
+            <div className="order-summary-list">
+              {completedOrder.items.map((item) => (
+                <div key={item.productId}>
+                  <span>
+                    {item.name} x {item.quantity}
+                  </span>
+                  <strong>{formatPi(item.lineSubtotal)}</strong>
+                </div>
+              ))}
+            </div>
+            <Link className="back-link" to="/">
+              Nazad na shop
+            </Link>
+          </section>
+        ) : items.length === 0 ? (
           <div className="empty-state">
             <strong>Korpa je prazna</strong>
             <p>Dodaj proizvod iz shopa da pripremiš narudžbu.</p>
             <Link to="/">Nazad na shop</Link>
+            <button className="cart-checkout-button" disabled>
+              Plati sa Pi
+            </button>
           </div>
         ) : (
           <section className="cart-layout">
@@ -92,7 +204,23 @@ const CartPage = () => {
                 <strong>{formatPi(subtotal)}</strong>
               </div>
 
-              <button>Checkout coming next</button>
+              {!isAuthenticated && (
+                <p className="cart-auth-notice">
+                  Pi prijava je potrebna prije plaćanja.
+                </p>
+              )}
+
+              {checkoutError && (
+                <p className="cart-message error">{checkoutError}</p>
+              )}
+
+              <button
+                className="cart-checkout-button"
+                onClick={handleCheckout}
+                disabled={items.length === 0 || isLoading}
+              >
+                {isLoading ? "Pokretanje Pi plaćanja..." : "Plati sa Pi"}
+              </button>
             </aside>
           </section>
         )}
