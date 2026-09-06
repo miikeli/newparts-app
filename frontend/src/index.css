@@ -949,6 +949,96 @@ button {
   text-decoration: none;
 }
 
+.cart-address-section {
+  margin-top: 16px;
+  border-top: 1px solid #edf1f5;
+  padding-top: 16px;
+}
+
+.cart-address-section > div:first-child {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.cart-address-section h3 {
+  margin: 0;
+  color: #142033;
+  font-size: 16px;
+}
+
+.cart-address-section a,
+.cart-address-empty a {
+  color: #1268d6;
+  font-size: 13px;
+  font-weight: 900;
+  text-decoration: none;
+}
+
+.cart-address-section p,
+.cart-address-empty {
+  margin: 0;
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.cart-address-empty {
+  display: grid;
+  gap: 8px;
+  border: 1px solid #fee2e2;
+  border-radius: 8px;
+  background: #fff7ed;
+  padding: 12px;
+}
+
+.cart-address-empty strong {
+  color: #991b1b;
+}
+
+.cart-address-options {
+  display: grid;
+  gap: 8px;
+}
+
+.cart-address-options label {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  border: 1px solid #d8e0ea;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 11px;
+  cursor: pointer;
+}
+
+.cart-address-options label.active {
+  border-color: #1268d6;
+  box-shadow: 0 0 0 2px rgba(18, 104, 214, 0.12);
+}
+
+.cart-address-options input {
+  margin-top: 3px;
+}
+
+.cart-address-options span {
+  display: grid;
+  gap: 3px;
+  color: #46566a;
+  font-size: 13px;
+}
+
+.cart-address-options strong {
+  color: #142033;
+}
+
+.cart-address-options small {
+  color: #64748b;
+  line-height: 1.4;
+}
+
 .account-page {
   padding: 28px 0 64px;
   background: #f6f8fb;
@@ -1047,6 +1137,39 @@ button {
   overflow-wrap: anywhere;
 }
 
+.address-summary {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 10px;
+  font-style: normal;
+}
+
+.address-summary span {
+  color: #64748b;
+}
+
+.text-action {
+  border: 0;
+  background: transparent;
+  color: #1268d6;
+  padding: 0;
+  font-weight: 900;
+  text-align: left;
+}
+
+.address-editor {
+  margin-bottom: 18px;
+  border: 1px solid #d8e0ea;
+  border-radius: 8px;
+  background: #f8fafc;
+  padding: 16px;
+}
+
+.address-editor h3 {
+  margin: 0 0 14px;
+  color: #142033;
+}
+
 .address-form {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1088,6 +1211,95 @@ button {
 .account-primary-button:disabled {
   cursor: not-allowed;
   background: #94a3b8;
+}
+
+.address-form-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.address-form-actions .account-primary-button {
+  margin-top: 0;
+}
+
+.secondary-button {
+  border: 1px solid #d8e0ea;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #46566a;
+  padding: 13px 18px;
+  font-weight: 900;
+}
+
+.address-card-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.address-card {
+  border: 1px solid #d8e0ea;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 16px;
+}
+
+.address-card > div:first-child {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.address-card > div:first-child strong {
+  color: #142033;
+  font-size: 17px;
+}
+
+.address-card > div:first-child span {
+  border-radius: 999px;
+  background: #e0f2fe;
+  color: #075985;
+  padding: 5px 8px;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.address-card address {
+  display: grid;
+  gap: 5px;
+  margin-bottom: 14px;
+  color: #64748b;
+  font-style: normal;
+}
+
+.address-card address strong {
+  color: #142033;
+}
+
+.address-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.address-card-actions button {
+  border: 1px solid #d8e0ea;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #46566a;
+  padding: 9px 10px;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.address-card-actions button:first-child,
+.address-card-actions button:last-child {
+  border-color: #1268d6;
+  color: #1268d6;
 }
 
 .account-success-message {
@@ -1405,8 +1617,15 @@ button {
   }
 
   .address-form,
-  .profile-list div {
+  .profile-list div,
+  .address-card-grid {
     grid-template-columns: 1fr;
+  }
+
+  .address-form-actions,
+  .cart-address-section > div:first-child {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .spec-list div {

@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useOutletContext } from "react-router-dom";
 import type { StoreOutletContext } from "../components/StoreShell";
 import { useCart } from "../context/CartContext";
 import { usePayments } from "../hooks/usePayments";
 import { axiosClient } from "../lib/axiosClient";
 import { getPiAuthConfig } from "../lib/piAuth";
-import type { UserProfile } from "../types/account";
+import type { UserShippingAddress } from "../types/account";
 
 const formatPi = (amount: number) => `${amount.toFixed(2)} Test-Pi`;
 
@@ -22,8 +22,9 @@ type CompletedOrderSummary = {
   }[];
 };
 
-type ProfileResponse = {
-  profile: UserProfile;
+type AddressesResponse = {
+  addresses: UserShippingAddress[];
+  defaultShippingAddressId?: string;
 };
 
 const CartPage = () => {
@@ -42,9 +43,57 @@ const CartPage = () => {
   });
   const [checkoutError, setCheckoutError] = useState("");
   const [needsAddress, setNeedsAddress] = useState(false);
-  const [isCheckingProfile, setIsCheckingProfile] = useState(false);
+  const [isLoadingAddresses, setIsLoadingAddresses] = useState(false);
+  const [addresses, setAddresses] = useState<UserShippingAddress[]>([]);
+  const [selectedAddressId, setSelectedAddressId] = useState("");
   const [completedOrder, setCompletedOrder] =
     useState<CompletedOrderSummary | null>(null);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setAddresses([]);
+      setSelectedAddressId("");
+      return;
+    }
+
+    let isMounted = true;
+
+    const loadAddresses = async () => {
+      setIsLoadingAddresses(true);
+
+      try {
+        const response = await axiosClient.get<AddressesResponse>(
+          "/user/addresses",
+          getPiAuthConfig()
+        );
+
+        if (!isMounted) {
+          return;
+        }
+
+        setAddresses(response.data.addresses);
+        setSelectedAddressId(
+          response.data.defaultShippingAddressId ??
+            response.data.addresses[0]?.id ??
+            ""
+        );
+      } catch {
+        if (isMounted) {
+          setCheckoutError("Nije moguće učitati adrese dostave.");
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoadingAddresses(false);
+        }
+      }
+    };
+
+    loadAddresses();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isAuthenticated]);
 
   const handleCheckout = async () => {
     setCheckoutError("");
@@ -61,24 +110,10 @@ const CartPage = () => {
       return;
     }
 
-    setIsCheckingProfile(true);
-
-    try {
-      const profileResponse = await axiosClient.get<ProfileResponse>(
-        "/user/profile",
-        getPiAuthConfig()
-      );
-
-      if (!profileResponse.data.profile.shippingAddress) {
-        setNeedsAddress(true);
-        setCheckoutError("Prije plaćanja unesite adresu dostave.");
-        return;
-      }
-    } catch {
-      setCheckoutError("Nije moguće provjeriti adresu dostave.");
+    if (!selectedAddressId) {
+      setNeedsAddress(true);
+      setCheckoutError("Prije plaćanja dodajte adresu dostave.");
       return;
-    } finally {
-      setIsCheckingProfile(false);
     }
 
     const paymentItems = items.map((item) => ({
@@ -96,22 +131,28 @@ const CartPage = () => {
       })),
     };
 
-    orderCart(Number(subtotal.toFixed(7)), itemCount, paymentItems, {
-      onCompleted: (paymentId, txid) => {
-        setCompletedOrder({
-          paymentId,
-          txid,
-          ...orderSnapshot,
-        });
-        clearCart();
+    orderCart(
+      Number(subtotal.toFixed(7)),
+      itemCount,
+      paymentItems,
+      selectedAddressId,
+      {
+        onCompleted: (paymentId, txid) => {
+          setCompletedOrder({
+            paymentId,
+            txid,
+            ...orderSnapshot,
+          });
+          clearCart();
+        },
+        onCancelled: () => {
+          setCheckoutError("Plaćanje je otkazano. Korpa je ostala nepromijenjena.");
+        },
+        onError: (message) => {
+          setCheckoutError(message);
+        },
       },
-      onCancelled: () => {
-        setCheckoutError("Plaćanje je otkazano. Korpa je ostala nepromijenjena.");
-      },
-      onError: (message) => {
-        setCheckoutError(message);
-      },
-    });
+    );
   };
 
   return (
@@ -240,6 +281,52 @@ const CartPage = () => {
                 </p>
               )}
 
+              {isAuthenticated && (
+                <section className="cart-address-section">
+                  <div>
+                    <h3>Adresa dostave</h3>
+                    <Link to="/account">Upravljaj adresama</Link>
+                  </div>
+
+                  {isLoadingAddresses ? (
+                    <p>Učitavanje adresa...</p>
+                  ) : addresses.length === 0 ? (
+                    <div className="cart-address-empty">
+                      <strong>Prije plaćanja dodajte adresu dostave.</strong>
+                      <Link to="/account">Dodaj adresu</Link>
+                    </div>
+                  ) : (
+                    <div className="cart-address-options">
+                      {addresses.map((address) => (
+                        <label
+                          className={
+                            selectedAddressId === address.id ? "active" : ""
+                          }
+                          key={address.id}
+                        >
+                          <input
+                            type="radio"
+                            name="shippingAddress"
+                            checked={selectedAddressId === address.id}
+                            onChange={() => setSelectedAddressId(address.id)}
+                          />
+                          <span>
+                            <strong>
+                              {address.label || "Adresa dostave"}
+                            </strong>
+                            {address.fullName}
+                            <small>
+                              {address.address1}, {address.city}{" "}
+                              {address.postalCode}
+                            </small>
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </section>
+              )}
+
               {checkoutError && (
                 <p className="cart-message error">{checkoutError}</p>
               )}
@@ -253,12 +340,17 @@ const CartPage = () => {
               <button
                 className="cart-checkout-button"
                 onClick={handleCheckout}
-                disabled={items.length === 0 || isLoading || isCheckingProfile}
+                disabled={
+                  items.length === 0 ||
+                  isLoading ||
+                  isLoadingAddresses ||
+                  (isAuthenticated && addresses.length === 0)
+                }
               >
-                {isLoading || isCheckingProfile
+                {isLoading || isLoadingAddresses
                   ? "Provjera podataka..."
                   : "Plati sa Pi"}
-      </button>
+              </button>
             </aside>
           </section>
         )}

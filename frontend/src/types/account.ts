@@ -9,9 +9,18 @@ export type ShippingAddress = {
   countryCode: string;
 };
 
+export type UserShippingAddress = ShippingAddress & {
+  id: string;
+  label?: string;
+  created_at?: string;
+  updated_at?: string;
+};
+
 export type UserProfile = {
   pi_uid: string;
   username?: string;
+  addresses: UserShippingAddress[];
+  defaultShippingAddressId?: string;
   shippingAddress: ShippingAddress | null;
   created_at?: string;
   updated_at?: string;

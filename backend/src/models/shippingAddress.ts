@@ -9,10 +9,27 @@ export type ShippingAddress = {
   countryCode: string;
 };
 
+export type UserShippingAddress = ShippingAddress & {
+  id: string;
+  label?: string;
+  created_at: Date;
+  updated_at: Date;
+};
+
 type ValidationResult =
   | {
       ok: true;
       value: ShippingAddress;
+    }
+  | {
+      ok: false;
+      errors: { [field: string]: string };
+    };
+
+type UserAddressValidationResult =
+  | {
+      ok: true;
+      value: UserShippingAddress;
     }
   | {
       ok: false;
@@ -30,6 +47,8 @@ const maxLengths: { [field in keyof ShippingAddress]: number } = {
   countryCode: 2,
 };
 
+const maxLabelLength = 60;
+
 const requiredFields: Array<keyof ShippingAddress> = [
   "fullName",
   "phone",
@@ -42,6 +61,12 @@ const requiredFields: Array<keyof ShippingAddress> = [
 
 const readTrimmedString = (value: unknown) =>
   typeof value === "string" ? value.trim() : "";
+
+const readOptionalTrimmedString = (value: unknown) => {
+  const trimmed = readTrimmedString(value);
+
+  return trimmed || undefined;
+};
 
 export const validateShippingAddress = (input: unknown): ValidationResult => {
   const source =
@@ -89,6 +114,47 @@ export const validateShippingAddress = (input: unknown): ValidationResult => {
   return {
     ok: true,
     value: address,
+  };
+};
+
+export const validateUserShippingAddress = (
+  input: unknown,
+  addressId: string,
+  now: Date,
+  createdAt?: Date,
+): UserAddressValidationResult => {
+  const baseValidation = validateShippingAddress(input);
+  const source =
+    typeof input === "object" && input !== null && !Array.isArray(input)
+      ? (input as { [field: string]: unknown })
+      : {};
+  const label = readOptionalTrimmedString(source.label);
+  const errors: { [field: string]: string } = {};
+
+  if (!baseValidation.ok) {
+    Object.assign(errors, baseValidation.errors);
+  }
+
+  if (label && label.length > maxLabelLength) {
+    errors.label = `Max ${maxLabelLength} characters`;
+  }
+
+  if (Object.keys(errors).length > 0) {
+    return {
+      ok: false,
+      errors,
+    };
+  }
+
+  return {
+    ok: true,
+    value: {
+      ...(baseValidation as { ok: true; value: ShippingAddress }).value,
+      id: addressId,
+      ...(label ? { label } : {}),
+      created_at: createdAt ?? now,
+      updated_at: now,
+    },
   };
 };
 

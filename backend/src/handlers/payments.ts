@@ -6,12 +6,23 @@ import {
   type ShippingAddress,
 } from "../models/shippingAddress";
 import platformAPIClient from "../services/platformAPIClient";
+import {
+  loadProfileView,
+  toShippingSnapshot,
+  type ProfileCollection,
+} from "../services/userProfiles";
 import { createOrderNumber } from "../utils/orders";
 import "../types/session";
 
 type CartMetadataItem = {
   productId: string;
   quantity: number;
+};
+
+type NormalizedPaymentItems = {
+  metadataType: "cart" | "legacy_product";
+  items: CartMetadataItem[];
+  shippingAddressId?: string;
 };
 
 type OrderItem = CartMetadataItem & {
@@ -195,7 +206,7 @@ const readPositiveIntegerQuantity = (quantity: unknown) => {
   return quantity;
 };
 
-const normalizePaymentItems = (metadata: unknown) => {
+const normalizePaymentItems = (metadata: unknown): NormalizedPaymentItems => {
   const parsedMetadata = parsePaymentMetadata(metadata);
 
   if (!isRecord(parsedMetadata)) {
@@ -274,6 +285,7 @@ const normalizePaymentItems = (metadata: unknown) => {
     return {
       metadataType: "cart",
       items,
+      shippingAddressId: readSafeString(parsedMetadata.shippingAddressId) ?? undefined,
     };
   }
 
@@ -362,6 +374,7 @@ const buildOrderItems = (metadata: unknown) => {
     items: orderItems,
     total: fromPiAmountUnits(totalUnits),
     totalUnits,
+    shippingAddressId: normalized.shippingAddressId,
   };
 };
 
@@ -610,30 +623,49 @@ const getPlatformPayment = async (paymentId: string) => {
 };
 
 const readShippingAddressSnapshot = async (
-  profileCollection: { findOne: (query: unknown) => Promise<unknown> },
+  profileCollection: ProfileCollection,
   userUid: string,
   required: boolean,
+  requestedAddressId?: string,
 ) => {
-  const profile = (await profileCollection.findOne({
-    pi_uid: userUid,
-  })) as { shippingAddress?: unknown } | null;
-
-  const validation = validateShippingAddress(profile?.shippingAddress);
-
-  if (!validation.ok) {
-    if (required) {
-      throw validationError(
-        400,
-        "shipping_address_required",
-        "Prije plaćanja unesite adresu dostave.",
-        "Cart checkout attempted without a valid shipping address",
-      );
-    }
-
+  if (!required) {
     return null;
   }
 
-  return validation.value;
+  const profile = await loadProfileView(profileCollection, userUid);
+  const selectedAddress = requestedAddressId
+    ? profile.addresses.find((address) => address.id === requestedAddressId)
+    : profile.addresses.find(
+        (address) => address.id === profile.defaultShippingAddressId,
+      );
+
+  if (!selectedAddress) {
+    throw validationError(
+      400,
+      requestedAddressId
+        ? "invalid_shipping_address"
+        : "shipping_address_required",
+      requestedAddressId
+        ? "Selected shipping address is not available"
+        : "Prije plaćanja unesite adresu dostave.",
+      requestedAddressId
+        ? "Cart metadata referenced an address that does not belong to the authenticated user"
+        : "Cart checkout attempted without a valid default shipping address",
+    );
+  }
+
+  const validation = validateShippingAddress(selectedAddress);
+
+  if (!validation.ok) {
+    throw validationError(
+      400,
+      "shipping_address_required",
+      "Prije plaćanja unesite adresu dostave.",
+      "Cart checkout attempted with an invalid shipping address",
+    );
+  }
+
+  return toShippingSnapshot(validation.value);
 };
 
 const writeOrderOnApproval = async (
@@ -661,6 +693,7 @@ const writeOrderOnApproval = async (
     payment_memo: string | null;
     payment_metadata_type: string;
     shippingAddress: ShippingAddress | null;
+    shippingAddressId?: string;
   },
 ) => {
   for (let attempt = 0; attempt < orderNumberRetryLimit; attempt += 1) {
@@ -867,6 +900,7 @@ export default function mountPaymentsEndpoints(router: Router) {
         profileCollection,
         authenticatedUserUid,
         order.metadataType === "cart",
+        order.shippingAddressId,
       );
 
       try {
@@ -891,6 +925,9 @@ export default function mountPaymentsEndpoints(router: Router) {
             payment_memo: payment.memo ?? null,
             payment_metadata_type: order.metadataType,
             shippingAddress,
+            ...(order.shippingAddressId
+              ? { shippingAddressId: order.shippingAddressId }
+              : {}),
           },
         );
       } catch (err) {

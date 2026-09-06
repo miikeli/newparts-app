@@ -14,6 +14,7 @@ export type CartPaymentMetadata = {
     productId: string;
     quantity: number;
   }[];
+  shippingAddressId?: string;
 };
 
 type PaymentMetadata = ProductPaymentMetadata | CartPaymentMetadata;
@@ -151,6 +152,7 @@ export const usePayments = ({ isAuthenticated, onRequireAuth }: UsePaymentsArgs)
       amount: number,
       itemCount: number,
       items: CartPaymentMetadata["items"],
+      shippingAddressId?: string,
       callbacks: PaymentCallbacks = {}
     ) =>
       orderProduct(
@@ -159,6 +161,7 @@ export const usePayments = ({ isAuthenticated, onRequireAuth }: UsePaymentsArgs)
         {
           type: "cart",
           items,
+          ...(shippingAddressId ? { shippingAddressId } : {}),
         },
         undefined,
         callbacks
