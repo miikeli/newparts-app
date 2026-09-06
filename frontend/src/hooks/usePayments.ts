@@ -1,6 +1,7 @@
-import axios, { type AxiosRequestConfig } from "axios";
+import axios from "axios";
 import { useCallback, useRef, useState } from "react";
 import { axiosClient } from "../lib/axiosClient";
+import { getPiAuthConfig } from "../lib/piAuth";
 import type { PaymentDTO } from "../types/pi";
 
 type ProductPaymentMetadata = {
@@ -42,20 +43,6 @@ const getPaymentErrorMessage = (err: unknown, fallback: string) => {
   }
 
   return fallback;
-};
-
-const getPiAuthConfig = (): AxiosRequestConfig | undefined => {
-  const accessToken = sessionStorage.getItem("pi_access_token");
-
-  if (!accessToken) {
-    return undefined;
-  }
-
-  return {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-    },
-  };
 };
 
 export const usePayments = ({ isAuthenticated, onRequireAuth }: UsePaymentsArgs) => {

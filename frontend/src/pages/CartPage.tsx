@@ -3,6 +3,9 @@ import { Link, useOutletContext } from "react-router-dom";
 import type { StoreOutletContext } from "../components/StoreShell";
 import { useCart } from "../context/CartContext";
 import { usePayments } from "../hooks/usePayments";
+import { axiosClient } from "../lib/axiosClient";
+import { getPiAuthConfig } from "../lib/piAuth";
+import type { UserProfile } from "../types/account";
 
 const formatPi = (amount: number) => `${amount.toFixed(2)} Test-Pi`;
 
@@ -17,6 +20,10 @@ type CompletedOrderSummary = {
     quantity: number;
     lineSubtotal: number;
   }[];
+};
+
+type ProfileResponse = {
+  profile: UserProfile;
 };
 
 const CartPage = () => {
@@ -34,11 +41,14 @@ const CartPage = () => {
     onRequireAuth: requireAuth,
   });
   const [checkoutError, setCheckoutError] = useState("");
+  const [needsAddress, setNeedsAddress] = useState(false);
+  const [isCheckingProfile, setIsCheckingProfile] = useState(false);
   const [completedOrder, setCompletedOrder] =
     useState<CompletedOrderSummary | null>(null);
 
-  const handleCheckout = () => {
+  const handleCheckout = async () => {
     setCheckoutError("");
+    setNeedsAddress(false);
     setCompletedOrder(null);
 
     if (!isAuthenticated) {
@@ -49,6 +59,26 @@ const CartPage = () => {
 
     if (items.length === 0) {
       return;
+    }
+
+    setIsCheckingProfile(true);
+
+    try {
+      const profileResponse = await axiosClient.get<ProfileResponse>(
+        "/user/profile",
+        getPiAuthConfig()
+      );
+
+      if (!profileResponse.data.profile.shippingAddress) {
+        setNeedsAddress(true);
+        setCheckoutError("Prije plaćanja unesite adresu dostave.");
+        return;
+      }
+    } catch {
+      setCheckoutError("Nije moguće provjeriti adresu dostave.");
+      return;
+    } finally {
+      setIsCheckingProfile(false);
     }
 
     const paymentItems = items.map((item) => ({
@@ -214,13 +244,21 @@ const CartPage = () => {
                 <p className="cart-message error">{checkoutError}</p>
               )}
 
+              {needsAddress && (
+                <Link className="cart-address-link" to="/account">
+                  Unesi adresu dostave
+                </Link>
+              )}
+
               <button
                 className="cart-checkout-button"
                 onClick={handleCheckout}
-                disabled={items.length === 0 || isLoading}
+                disabled={items.length === 0 || isLoading || isCheckingProfile}
               >
-                {isLoading ? "Pokretanje Pi plaćanja..." : "Plati sa Pi"}
-              </button>
+                {isLoading || isCheckingProfile
+                  ? "Provjera podataka..."
+                  : "Plati sa Pi"}
+      </button>
             </aside>
           </section>
         )}

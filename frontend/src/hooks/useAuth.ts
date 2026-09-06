@@ -1,5 +1,6 @@
 import { useCallback, useState } from "react";
 import { axiosClient } from "../lib/axiosClient";
+import { getPiAuthConfig } from "../lib/piAuth";
 import type { AuthResult, PaymentDTO, User } from "../types/pi";
 
 export const useAuth = () => {
@@ -9,9 +10,13 @@ export const useAuth = () => {
 
   const onIncompletePaymentFound = useCallback(async (payment: PaymentDTO) => {
     try {
-      await axiosClient.post("/payments/incomplete", { payment });
-    } catch (err) {
-      console.error("Error handling incomplete payment:", err);
+      await axiosClient.post(
+        "/payments/incomplete",
+        { payment },
+        getPiAuthConfig()
+      );
+    } catch {
+      console.error("Error handling incomplete payment");
     }
   }, []);
 
@@ -23,8 +28,8 @@ export const useAuth = () => {
 
       setUser(authResult.user);
       setShowSignIn(false);
-    } catch (err) {
-      console.error("Error signing in:", err);
+    } catch {
+      console.error("Error signing in");
     }
   }, []);
 
@@ -34,8 +39,8 @@ export const useAuth = () => {
       const scopes = ["username", "payments", "roles", "in_app_notifications"];
       const authResult = await window.Pi.authenticate(scopes, onIncompletePaymentFound);
       await signInUser(authResult);
-    } catch (err) {
-      console.error("Error authenticating:", err);
+    } catch {
+      console.error("Error authenticating");
     } finally {
       setIsLoading(false);
     }
@@ -49,8 +54,8 @@ export const useAuth = () => {
       sessionStorage.removeItem("pi_access_token");
 
       setUser(null);
-    } catch (err) {
-      console.error("Error signing out:", err);
+    } catch {
+      console.error("Error signing out");
     } finally {
       setIsLoading(false);
     }

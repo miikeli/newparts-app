@@ -8,6 +8,7 @@ import logger from "morgan";
 import MongoStore from "connect-mongo";
 import { MongoClient } from "mongodb";
 import env from "./environments";
+import mountOrderEndpoints from "./handlers/orders";
 import mountPaymentsEndpoints from "./handlers/payments";
 import mountUserEndpoints from "./handlers/users";
 
@@ -100,6 +101,11 @@ const userRouter = express.Router();
 mountUserEndpoints(userRouter);
 app.use("/user", userRouter);
 
+// Order history endpoints under /orders:
+const orderRouter = express.Router();
+mountOrderEndpoints(orderRouter);
+app.use("/orders", orderRouter);
+
 // Notification endpoints under /notifications:
 const notificationRouter = express.Router();
 mountNotificationEndpoints(notificationRouter);
@@ -117,17 +123,29 @@ const start = async () => {
     const client = await MongoClient.connect(mongoUri, mongoClientOptions);
     const db = client.db(dbName);
     const orderCollection = db.collection("orders");
+    const userProfileCollection = db.collection("user_profiles");
     await orderCollection.createIndex({ pi_payment_id: 1 }, { unique: true });
+    await orderCollection.createIndex(
+      { orderNumber: 1 },
+      {
+        unique: true,
+        partialFilterExpression: { orderNumber: { $type: "string" } },
+      },
+    );
+    await userProfileCollection.createIndex({ pi_uid: 1 }, { unique: true });
     app.locals.orderCollection = orderCollection;
+    app.locals.userProfileCollection = userProfileCollection;
     app.locals.userCollection = db.collection("users");
-    console.log("Connected to MongoDB on: ", mongoUri);
+    console.log("Connected to MongoDB");
 
     app.listen(env.port, () => {
       console.log(`App platform demo app - Backend listening on port ${env.port}!`);
       console.log(`CORS config: configured to respond to a frontend hosted on ${env.frontend_url}`);
     });
   } catch (err) {
-    console.error("Connection to MongoDB failed: ", err);
+    console.error("Connection to MongoDB failed", {
+      error: err instanceof Error ? err.name : "UnknownError",
+    });
     process.exit(1);
   }
 };

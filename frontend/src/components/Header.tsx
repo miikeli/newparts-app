@@ -154,6 +154,10 @@ const Header = ({
         </Link>
 
         <div style={userSectionStyle}>
+          <Link to="/account" style={cartLinkStyle} aria-label="Moj nalog">
+            👤
+          </Link>
+
           <Link to="/cart" style={cartLinkStyle} aria-label="Korpa">
             🛒
             {cartItemCount > 0 && (

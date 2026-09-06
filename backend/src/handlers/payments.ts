@@ -1,7 +1,12 @@
 import axios from "axios";
 import { Router, type Request } from "express";
 import { findCatalogProductById } from "../data/products";
+import {
+  validateShippingAddress,
+  type ShippingAddress,
+} from "../models/shippingAddress";
 import platformAPIClient from "../services/platformAPIClient";
+import { createOrderNumber } from "../utils/orders";
 import "../types/session";
 
 type CartMetadataItem = {
@@ -10,8 +15,15 @@ type CartMetadataItem = {
 };
 
 type OrderItem = CartMetadataItem & {
+  name: string;
+  brand: string;
+  sku: string;
+  mpn: string;
+  image: string;
   unitPrice: number;
   unitPriceUnits: number;
+  lineTotal: number;
+  lineTotalUnits: number;
 };
 
 type PaymentValidationError = {
@@ -41,15 +53,18 @@ type PlatformPayment = {
 };
 
 type OrderDocument = {
+  orderNumber?: string;
   pi_payment_id: string;
   user?: string;
   user_uid?: string;
   items?: OrderItem[];
   total?: number;
   total_units?: number;
+  status?: string;
   txid?: string | null;
   paid?: boolean;
   cancelled?: boolean;
+  completed_at?: Date;
 };
 
 const piAmountPrecision = 7;
@@ -57,6 +72,7 @@ const piAmountUnit = 10000000;
 const maxLineItems = 50;
 const maxQuantityPerProduct = 99;
 const maxSafeInteger = 9007199254740991;
+const orderNumberRetryLimit = 3;
 
 const isRecord = (value: unknown): value is { [key: string]: unknown } =>
   typeof value === "object" && value !== null && !Array.isArray(value);
@@ -314,14 +330,22 @@ const buildOrderItems = (metadata: unknown) => {
     }
 
     const unitPriceUnits = toPiAmountUnits(product.price, "Catalog price");
+    const lineTotalUnits = unitPriceUnits * item.quantity;
 
     orderItems.push({
       productId: item.productId,
+      name: product.name,
+      brand: product.brand,
+      sku: product.sku,
+      mpn: product.mpn,
+      image: product.image,
       quantity: item.quantity,
       unitPrice: product.price,
       unitPriceUnits,
+      lineTotal: fromPiAmountUnits(lineTotalUnits),
+      lineTotalUnits,
     });
-    totalUnits += unitPriceUnits * item.quantity;
+    totalUnits += lineTotalUnits;
 
     if (!isSafeInteger(totalUnits)) {
       throw validationError(
@@ -472,6 +496,22 @@ const assertCompletedPaymentState = (
   }
 };
 
+const isPlatformPaymentCompleted = (
+  payment: PlatformPayment,
+  expectedTxid?: string,
+) => {
+  if (payment.status?.developer_completed !== true) {
+    return false;
+  }
+
+  const paymentTxid = readSafeString(payment.transaction?.txid);
+
+  return !expectedTxid || !paymentTxid || paymentTxid === expectedTxid;
+};
+
+const isPlatformPaymentCancelled = (payment: PlatformPayment) =>
+  payment.status?.cancelled === true || payment.status?.user_cancelled === true;
+
 const approvePaymentIfNeeded = async (
   paymentId: string,
   payment: PlatformPayment,
@@ -569,6 +609,103 @@ const getPlatformPayment = async (paymentId: string) => {
   return response.data as PlatformPayment;
 };
 
+const readShippingAddressSnapshot = async (
+  profileCollection: { findOne: (query: unknown) => Promise<unknown> },
+  userUid: string,
+  required: boolean,
+) => {
+  const profile = (await profileCollection.findOne({
+    pi_uid: userUid,
+  })) as { shippingAddress?: unknown } | null;
+
+  const validation = validateShippingAddress(profile?.shippingAddress);
+
+  if (!validation.ok) {
+    if (required) {
+      throw validationError(
+        400,
+        "shipping_address_required",
+        "Prije plaćanja unesite adresu dostave.",
+        "Cart checkout attempted without a valid shipping address",
+      );
+    }
+
+    return null;
+  }
+
+  return validation.value;
+};
+
+const writeOrderOnApproval = async (
+  orderCollection: {
+    updateOne: (
+      filter: unknown,
+      update: unknown,
+      options: unknown,
+    ) => Promise<unknown>;
+    findOne: (query: unknown) => Promise<unknown>;
+  },
+  paymentId: string,
+  orderDocument: {
+    product_id: string | null;
+    user: string;
+    user_uid: string;
+    items: OrderItem[];
+    subtotal: number;
+    subtotal_units: number;
+    total: number;
+    total_units: number;
+    payment_amount: number;
+    payment_amount_units: number;
+    currency: string;
+    payment_memo: string | null;
+    payment_metadata_type: string;
+    shippingAddress: ShippingAddress | null;
+  },
+) => {
+  for (let attempt = 0; attempt < orderNumberRetryLimit; attempt += 1) {
+    try {
+      await orderCollection.updateOne(
+        { pi_payment_id: paymentId },
+        {
+          $setOnInsert: {
+            orderNumber: createOrderNumber(),
+            pi_payment_id: paymentId,
+            status: "pending",
+            txid: null,
+            paid: false,
+            cancelled: false,
+            created_at: new Date(),
+            ...orderDocument,
+          },
+        },
+        { upsert: true },
+      );
+
+      return;
+    } catch (err) {
+      if (!isDuplicateKeyError(err)) {
+        throw err;
+      }
+
+      const existingPaymentOrder = await orderCollection.findOne({
+        pi_payment_id: paymentId,
+      });
+
+      if (existingPaymentOrder) {
+        return;
+      }
+    }
+  }
+
+  throw validationError(
+    409,
+    "order_number_conflict",
+    "Could not create a unique order number",
+    "Order number generation hit retry limit",
+  );
+};
+
 export default function mountPaymentsEndpoints(router: Router) {
   // handle the incomplete payment
   router.post("/incomplete", async (req, res) => {
@@ -631,7 +768,14 @@ export default function mountPaymentsEndpoints(router: Router) {
 
       await orderCollection.updateOne(
         { pi_payment_id: paymentId },
-        { $set: { txid, paid: true, completed_at: new Date() } },
+        {
+          $set: {
+            txid,
+            paid: true,
+            status: "paid",
+            completed_at: new Date(),
+          },
+        },
       );
 
       return res
@@ -666,6 +810,14 @@ export default function mountPaymentsEndpoints(router: Router) {
       paymentId = readRequiredPaymentId(req.body.paymentId);
       const payment = await getPlatformPayment(paymentId);
       const orderCollection = app.locals.orderCollection;
+      const profileCollection = app.locals.userProfileCollection;
+
+      if (!profileCollection) {
+        return res.status(503).json({
+          error: "service_unavailable",
+          message: "Profile database not ready",
+        });
+      }
 
       assertPaymentBelongsToUser(payment, authenticatedUserUid);
 
@@ -711,33 +863,35 @@ export default function mountPaymentsEndpoints(router: Router) {
         assertOrderBelongsToUser(existingOrder, authenticatedUserUid);
       }
 
+      const shippingAddress = await readShippingAddressSnapshot(
+        profileCollection,
+        authenticatedUserUid,
+        order.metadataType === "cart",
+      );
+
       try {
-        await orderCollection.updateOne(
-          { pi_payment_id: paymentId },
+        await writeOrderOnApproval(
+          orderCollection,
+          paymentId,
           {
-            $setOnInsert: {
-              pi_payment_id: paymentId,
-              product_id:
-                order.metadataType === "legacy_product"
-                  ? order.items[0].productId
-                  : null,
-              user: authenticatedUserUid,
-              user_uid: authenticatedUserUid,
-              items: order.items,
-              total: order.total,
-              total_units: order.totalUnits,
-              payment_amount: fromPiAmountUnits(paymentAmount),
-              payment_amount_units: paymentAmount,
-              currency: "Test-Pi",
-              payment_memo: payment.memo ?? null,
-              payment_metadata_type: order.metadataType,
-              txid: null,
-              paid: false,
-              cancelled: false,
-              created_at: new Date(),
-            },
+            product_id:
+              order.metadataType === "legacy_product"
+                ? order.items[0].productId
+                : null,
+            user: authenticatedUserUid,
+            user_uid: authenticatedUserUid,
+            items: order.items,
+            subtotal: order.total,
+            subtotal_units: order.totalUnits,
+            total: order.total,
+            total_units: order.totalUnits,
+            payment_amount: fromPiAmountUnits(paymentAmount),
+            payment_amount_units: paymentAmount,
+            currency: "Test-Pi",
+            payment_memo: payment.memo ?? null,
+            payment_metadata_type: order.metadataType,
+            shippingAddress,
           },
-          { upsert: true },
         );
       } catch (err) {
         if (!isDuplicateKeyError(err)) {
@@ -806,6 +960,34 @@ export default function mountPaymentsEndpoints(router: Router) {
       const payment = await getPlatformPayment(paymentId);
       assertPaymentBelongsToUser(payment, authenticatedUserUid);
 
+      if (order.cancelled || order.status === "cancelled") {
+        if (!isPlatformPaymentCompleted(payment, txid)) {
+          throw validationError(
+            409,
+            "order_cancelled",
+            "Cancelled order cannot be completed without confirmed Pi completion",
+            "Completion attempted for a locally cancelled order without confirmed Pi completion",
+          );
+        }
+
+        await orderCollection.updateOne(
+          { pi_payment_id: paymentId },
+          {
+            $set: {
+              txid,
+              paid: true,
+              cancelled: false,
+              status: "paid",
+              completed_at: order.completed_at ?? new Date(),
+            },
+          },
+        );
+
+        return res.status(200).json({
+          message: `Completed the payment ${paymentId}`,
+        });
+      }
+
       if (payment.status?.cancelled || payment.status?.user_cancelled) {
         throw validationError(
           400,
@@ -838,7 +1020,15 @@ export default function mountPaymentsEndpoints(router: Router) {
 
       await orderCollection.updateOne(
         { pi_payment_id: paymentId },
-        { $set: { txid: txid, paid: true, completed_at: new Date() } },
+        {
+          $set: {
+            txid: txid,
+            paid: true,
+            cancelled: false,
+            status: "paid",
+            completed_at: new Date(),
+          },
+        },
       );
 
       return res.status(200).json({
@@ -886,9 +1076,42 @@ export default function mountPaymentsEndpoints(router: Router) {
 
       assertOrderBelongsToUser(order, authenticatedUserUid);
 
+      const payment = await getPlatformPayment(paymentId);
+      assertPaymentBelongsToUser(payment, authenticatedUserUid);
+
+      if (isPlatformPaymentCompleted(payment)) {
+        const paymentTxid = readSafeString(payment.transaction?.txid);
+
+        await orderCollection.updateOne(
+          { pi_payment_id: paymentId },
+          {
+            $set: {
+              txid: paymentTxid ?? order.txid ?? null,
+              paid: true,
+              cancelled: false,
+              status: "paid",
+              completed_at: order.completed_at ?? new Date(),
+            },
+          },
+        );
+
+        return res.status(200).json({
+          message: `Payment ${paymentId} is already completed`,
+        });
+      }
+
+      if (!isPlatformPaymentCancelled(payment)) {
+        throw validationError(
+          409,
+          "payment_state_unclear",
+          "Payment cancellation is not confirmed",
+          "Cancellation callback did not match a confirmed cancelled Pi payment state",
+        );
+      }
+
       await orderCollection.updateOne(
         { pi_payment_id: paymentId },
-        { $set: { cancelled: true } },
+        { $set: { paid: false, cancelled: true, status: "cancelled" } },
       );
 
       return res.status(200).json({
