@@ -1,4 +1,4 @@
-import type { CSSProperties } from "react";
+import type { CSSProperties, MouseEvent } from "react";
 
 interface ProductCardProps {
   name: string;
@@ -7,6 +7,7 @@ interface ProductCardProps {
   pictureURL: string;
   onClickBuyWithPi: () => void;
   onClickBuyWithIrra: () => void;
+  onOpenDetail?: () => void;
   disabled?: boolean;
   brand?: string;
   category?: string;
@@ -21,6 +22,7 @@ const cardStyle: CSSProperties = {
   border: "1px solid #e0e6ed",
   borderRadius: 18,
   boxShadow: "0 8px 28px rgba(20, 32, 51, 0.06)",
+  cursor: "pointer",
 };
 
 const imageWrapperStyle: CSSProperties = {
@@ -140,12 +142,28 @@ const ProductCard = ({
   pictureURL,
   onClickBuyWithPi,
   onClickBuyWithIrra,
+  onOpenDetail,
   disabled,
   brand,
   category,
 }: ProductCardProps) => {
+  const stopCardNavigation = (event: MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+  };
+
   return (
-    <article style={cardStyle}>
+    <article
+      style={cardStyle}
+      onClick={onOpenDetail}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onOpenDetail?.();
+        }
+      }}
+      role={onOpenDetail ? "button" : undefined}
+      tabIndex={onOpenDetail ? 0 : undefined}
+    >
       <div style={imageWrapperStyle}>
         <img style={imageStyle} src={pictureURL} alt={name} />
 
@@ -166,7 +184,10 @@ const ProductCard = ({
 
           <button
             style={piButtonStyle}
-            onClick={onClickBuyWithPi}
+            onClick={(event) => {
+              stopCardNavigation(event);
+              onClickBuyWithPi();
+            }}
             disabled={disabled}
           >
             Kupi sa Pi
@@ -174,7 +195,10 @@ const ProductCard = ({
 
           <button
             style={irraButtonStyle}
-            onClick={onClickBuyWithIrra}
+            onClick={(event) => {
+              stopCardNavigation(event);
+              onClickBuyWithIrra();
+            }}
             disabled={disabled}
           >
             Kupi sa IRRA

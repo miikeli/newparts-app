@@ -1,100 +1,21 @@
 import { useMemo, useState } from "react";
+import { useNavigate, useOutletContext } from "react-router-dom";
 
-import Header from "../components/Header";
 import ProductCard from "../components/ProductCard";
-import SignIn from "../components/SignIn";
 
-import { useAuth } from "../hooks/useAuth";
 import {
   IRRA_TOKEN_CANONICAL,
   usePayments,
 } from "../hooks/usePayments";
-import { axiosClient } from "../lib/axiosClient.ts";
-
-type Product = {
-  id: string;
-  name: string;
-  brand: string;
-  description: string;
-  category: string;
-  price: number;
-  pictureURL: string;
-};
-
-const products: Product[] = [
-  {
-    id: "brake_pads_1",
-    name: "Prednje kočione pločice",
-    brand: "Brembo",
-    description: "Set prednjih pločica za VW Golf 7, Audi A3 i Seat Leon.",
-    category: "Kočnice",
-    price: 0.1,
-    pictureURL:
-      "https://placehold.co/700x520/F4F6F8/111827?text=Brake+Pads",
-  },
-  {
-    id: "oil_filter_1",
-    name: "Filter ulja",
-    brand: "MANN-FILTER",
-    description: "Kvalitetni filter ulja za veliki broj benzinskih i dizel motora.",
-    category: "Filteri",
-    price: 0.08,
-    pictureURL:
-      "https://placehold.co/700x520/F4F6F8/111827?text=Oil+Filter",
-  },
-  {
-    id: "air_filter_1",
-    name: "Filter vazduha",
-    brand: "Bosch",
-    description: "Filter motora sa visokim stepenom filtracije i dugim vijekom trajanja.",
-    category: "Filteri",
-    price: 0.09,
-    pictureURL:
-      "https://placehold.co/700x520/F4F6F8/111827?text=Air+Filter",
-  },
-  {
-    id: "spark_plugs_1",
-    name: "Set svjećica",
-    brand: "NGK",
-    description: "Set od 4 svjećice za stabilno paljenje i optimalan rad motora.",
-    category: "Motor",
-    price: 0.12,
-    pictureURL:
-      "https://placehold.co/700x520/F4F6F8/111827?text=Spark+Plugs",
-  },
-  {
-    id: "shock_absorber_1",
-    name: "Prednji amortizer",
-    brand: "Sachs",
-    description: "Gasni amortizer za stabilnost, kontrolu i udobnu vožnju.",
-    category: "Ovjes",
-    price: 0.18,
-    pictureURL:
-      "https://placehold.co/700x520/F4F6F8/111827?text=Shock+Absorber",
-  },
-  {
-    id: "battery_1",
-    name: "Akumulator 74Ah",
-    brand: "Varta",
-    description: "12V akumulator za pouzdano pokretanje vozila u svim vremenskim uslovima.",
-    category: "Elektrika",
-    price: 0.25,
-    pictureURL:
-      "https://placehold.co/700x520/F4F6F8/111827?text=Battery",
-  },
-];
-
-const categories = [
-  "Kočnice",
-  "Paljenje",
-  "Motor",
-  "Ovjes",
-  "Upravljanje",
-  "Gorivo",
-  "Hlađenje",
-  "Elektrika",
-  "Klima",
-];
+import type { StoreOutletContext } from "../components/StoreShell";
+import {
+  brands,
+  categories,
+  products,
+  vehicleOptions,
+  type Product,
+  type VehicleSelection,
+} from "../data/products";
 
 const categoryTiles = [
   { name: "Kočione pločice", icon: "🧱" },
@@ -105,49 +26,105 @@ const categoryTiles = [
   { name: "Svjećice", icon: "⚡" },
 ];
 
-const brands = [
-  "BOSCH",
-  "BREMBO",
-  "MANN-FILTER",
-  "VARTA",
-  "LIQUI MOLY",
-  "DENSO",
-  "NGK",
-  "SACHS",
-];
+const uniqueValues = (values: string[]) => Array.from(new Set(values));
+
+const getVehicleLabel = (vehicle: VehicleSelection) =>
+  `${vehicle.make} ${vehicle.model} ${vehicle.year} ${vehicle.submodel}`;
+
+const fitsVehicle = (product: Product, vehicle: VehicleSelection) =>
+  product.fitments.some(
+    (fitment) =>
+      fitment.year === vehicle.year &&
+      fitment.make === vehicle.make &&
+      fitment.model === vehicle.model &&
+      fitment.submodel === vehicle.submodel
+  );
 
 const Shop = () => {
+  const navigate = useNavigate();
+  const { isAuthenticated, requireAuth } = useOutletContext<StoreOutletContext>();
   const [searchTerm, setSearchTerm] = useState("");
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [activeBrand, setActiveBrand] = useState<string | null>(null);
-
-  const {
-    user,
-    isAuthenticated,
-    showSignIn,
-    signIn,
-    signOut,
-    closeSignIn,
-    requireAuth,
-    isLoading: isAuthLoading,
-  } = useAuth();
+  const [selectedYear, setSelectedYear] = useState("");
+  const [selectedMake, setSelectedMake] = useState("");
+  const [selectedModel, setSelectedModel] = useState("");
+  const [selectedSubmodel, setSelectedSubmodel] = useState("");
+  const [activeVehicle, setActiveVehicle] = useState<VehicleSelection | null>(null);
 
   const { orderProduct, isLoading } = usePayments({
     isAuthenticated,
     onRequireAuth: requireAuth,
   });
 
-  const onSendTestNotification = () => {
-    const notification = {
-      title: "Newparts",
-      body: "Test notification from Newparts",
-      user_uid: user?.uid,
-      subroute: "/shop",
-    };
+  const availableYears = useMemo(
+    () => uniqueValues(vehicleOptions.map((vehicle) => vehicle.year)),
+    []
+  );
 
-    axiosClient.post("/notifications/send", {
-      notifications: [notification],
+  const availableMakes = useMemo(
+    () =>
+      uniqueValues(
+        vehicleOptions
+          .filter((vehicle) => vehicle.year === selectedYear)
+          .map((vehicle) => vehicle.make)
+      ),
+    [selectedYear]
+  );
+
+  const availableModels = useMemo(
+    () =>
+      uniqueValues(
+        vehicleOptions
+          .filter(
+            (vehicle) =>
+              vehicle.year === selectedYear && vehicle.make === selectedMake
+          )
+          .map((vehicle) => vehicle.model)
+      ),
+    [selectedMake, selectedYear]
+  );
+
+  const availableSubmodels = useMemo(
+    () =>
+      uniqueValues(
+        vehicleOptions
+          .filter(
+            (vehicle) =>
+              vehicle.year === selectedYear &&
+              vehicle.make === selectedMake &&
+              vehicle.model === selectedModel
+          )
+          .map((vehicle) => vehicle.submodel)
+      ),
+    [selectedMake, selectedModel, selectedYear]
+  );
+
+  const canApplyVehicle =
+    selectedYear !== "" &&
+    selectedMake !== "" &&
+    selectedModel !== "" &&
+    selectedSubmodel !== "";
+
+  const applyVehicleFilter = () => {
+    if (!canApplyVehicle) {
+      return;
+    }
+
+    setActiveVehicle({
+      year: selectedYear,
+      make: selectedMake,
+      model: selectedModel,
+      submodel: selectedSubmodel,
     });
+  };
+
+  const clearVehicleFilter = () => {
+    setSelectedYear("");
+    setSelectedMake("");
+    setSelectedModel("");
+    setSelectedSubmodel("");
+    setActiveVehicle(null);
   };
 
   const visibleProducts = useMemo(() => {
@@ -169,30 +146,28 @@ const Shop = () => {
         normalizedBrand === undefined ||
         product.brand.toLowerCase() === normalizedBrand;
 
-      return matchesSearch && matchesCategory && matchesBrand;
+      const matchesVehicle =
+        activeVehicle === null || fitsVehicle(product, activeVehicle);
+
+      return matchesSearch && matchesCategory && matchesBrand && matchesVehicle;
     });
-  }, [activeBrand, activeCategory, searchTerm]);
+  }, [activeBrand, activeCategory, activeVehicle, searchTerm]);
 
   const hasActiveFilters =
-    searchTerm.trim().length > 0 || activeCategory !== null || activeBrand !== null;
+    searchTerm.trim().length > 0 ||
+    activeCategory !== null ||
+    activeBrand !== null ||
+    activeVehicle !== null;
 
   const resetFilters = () => {
     setSearchTerm("");
     setActiveCategory(null);
     setActiveBrand(null);
+    clearVehicleFilter();
   };
 
   return (
-    <div className="newparts-page">
-      <Header
-        user={user}
-        onSignIn={signIn}
-        onSignOut={signOut}
-        onSendTestNotification={onSendTestNotification}
-        isLoading={isAuthLoading}
-      />
-
-      <main>
+    <main>
         <section className="top-search-wrap">
           <div className="top-search">
             <span className="search-icon">⌕</span>
@@ -213,43 +188,84 @@ const Shop = () => {
             </div>
 
             <div className="vehicle-grid">
-              <select defaultValue="">
+              <select
+                value={selectedYear}
+                onChange={(event) => {
+                  setSelectedYear(event.target.value);
+                  setSelectedMake("");
+                  setSelectedModel("");
+                  setSelectedSubmodel("");
+                }}
+              >
                 <option value="" disabled>
                   Godina
                 </option>
-                <option>2026</option>
-                <option>2025</option>
-                <option>2024</option>
+                {availableYears.map((year) => (
+                  <option key={year}>{year}</option>
+                ))}
               </select>
 
-              <select defaultValue="">
+              <select
+                value={selectedMake}
+                onChange={(event) => {
+                  setSelectedMake(event.target.value);
+                  setSelectedModel("");
+                  setSelectedSubmodel("");
+                }}
+                disabled={selectedYear === ""}
+              >
                 <option value="" disabled>
                   Marka
                 </option>
-                <option>Volkswagen</option>
-                <option>Audi</option>
-                <option>BMW</option>
+                {availableMakes.map((make) => (
+                  <option key={make}>{make}</option>
+                ))}
               </select>
 
-              <select defaultValue="">
+              <select
+                value={selectedModel}
+                onChange={(event) => {
+                  setSelectedModel(event.target.value);
+                  setSelectedSubmodel("");
+                }}
+                disabled={selectedMake === ""}
+              >
                 <option value="" disabled>
                   Model
                 </option>
-                <option>Golf</option>
-                <option>A3</option>
-                <option>320d</option>
+                {availableModels.map((model) => (
+                  <option key={model}>{model}</option>
+                ))}
               </select>
 
-              <select defaultValue="">
+              <select
+                value={selectedSubmodel}
+                onChange={(event) => setSelectedSubmodel(event.target.value)}
+                disabled={selectedModel === ""}
+              >
                 <option value="" disabled>
                   Podmodel
                 </option>
-                <option>Standard</option>
-                <option>Sport</option>
+                {availableSubmodels.map((submodel) => (
+                  <option key={submodel}>{submodel}</option>
+                ))}
               </select>
 
-              <button className="vehicle-go">GO</button>
+              <button
+                className="vehicle-go"
+                onClick={applyVehicleFilter}
+                disabled={!canApplyVehicle}
+              >
+                GO
+              </button>
             </div>
+
+            {activeVehicle && (
+              <div className="active-vehicle">
+                <span>{getVehicleLabel(activeVehicle)}</span>
+                <button onClick={clearVehicleFilter}>Ukloni vozilo</button>
+              </div>
+            )}
           </div>
         </section>
 
@@ -329,7 +345,12 @@ const Shop = () => {
                   category={product.category}
                   description={product.description}
                   price={product.price}
-                  pictureURL={product.pictureURL}
+                  pictureURL={product.images[0]}
+                  onOpenDetail={() =>
+                    navigate(`/product/${product.id}`, {
+                      state: { activeVehicle },
+                    })
+                  }
                   onClickBuyWithPi={() =>
                     orderProduct(
                       `Order ${product.name}`,
@@ -357,7 +378,9 @@ const Shop = () => {
                 <div className="empty-state">
                   <strong>Nema pronađenih proizvoda</strong>
                   <p>
-                    Probaj drugi naziv, kategoriju ili brend, ili resetuj filtere.
+                    {activeVehicle
+                      ? `Nema kompatibilnih proizvoda za ${getVehicleLabel(activeVehicle)} uz trenutno aktivne filtere.`
+                      : "Probaj drugi naziv, kategoriju ili brend, ili resetuj filtere."}
                   </p>
                   <button onClick={resetFilters}>Resetuj filtere</button>
                 </div>
@@ -399,16 +422,7 @@ const Shop = () => {
             </div>
           </div>
         </section>
-      </main>
-
-      {showSignIn && (
-        <SignIn
-          onSignIn={signIn}
-          onModalClose={closeSignIn}
-          disabled={isAuthLoading}
-        />
-      )}
-    </div>
+    </main>
   );
 };
 

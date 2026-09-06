@@ -1,4 +1,5 @@
 import type { CSSProperties } from "react";
+import { Link } from "react-router-dom";
 import type { User } from "../types/pi.ts";
 
 interface HeaderProps {
@@ -7,6 +8,7 @@ interface HeaderProps {
   onSendTestNotification: () => void;
   user: User | null;
   isLoading?: boolean;
+  cartItemCount?: number;
 }
 
 const headerStyle: CSSProperties = {
@@ -33,6 +35,8 @@ const logoAreaStyle: CSSProperties = {
   display: "flex",
   alignItems: "center",
   gap: 10,
+  color: "inherit",
+  textDecoration: "none",
 };
 
 const logoStyle: CSSProperties = {
@@ -99,26 +103,64 @@ const secondaryButtonStyle: CSSProperties = {
   background: "white",
 };
 
+const cartLinkStyle: CSSProperties = {
+  position: "relative",
+  display: "grid",
+  placeItems: "center",
+  width: 42,
+  height: 42,
+  border: "1px solid #d7dee8",
+  borderRadius: 10,
+  color: "#32445a",
+  background: "white",
+  textDecoration: "none",
+  fontSize: 20,
+};
+
+const cartBadgeStyle: CSSProperties = {
+  position: "absolute",
+  right: -6,
+  top: -7,
+  minWidth: 20,
+  height: 20,
+  borderRadius: 999,
+  padding: "0 5px",
+  display: "grid",
+  placeItems: "center",
+  background: "#1268d6",
+  color: "#ffffff",
+  fontSize: 11,
+  fontWeight: 900,
+};
+
 const Header = ({
   user,
   onSignIn,
   onSignOut,
   onSendTestNotification,
   isLoading,
+  cartItemCount = 0,
 }: HeaderProps) => {
   return (
     <header style={headerStyle}>
       <div style={innerStyle}>
-        <div style={logoAreaStyle}>
+        <Link to="/" style={logoAreaStyle} aria-label="Newparts shop">
           <div style={logoStyle}>N</div>
 
           <div style={brandStyle}>
             <span style={brandNameStyle}>NEWPARTS</span>
             <span style={brandCaptionStyle}>Novi auto djelovi</span>
           </div>
-        </div>
+        </Link>
 
         <div style={userSectionStyle}>
+          <Link to="/cart" style={cartLinkStyle} aria-label="Korpa">
+            🛒
+            {cartItemCount > 0 && (
+              <span style={cartBadgeStyle}>{cartItemCount}</span>
+            )}
+          </Link>
+
           {user ? (
             <>
               <span style={usernameStyle}>@{user.username}</span>
