@@ -1,6 +1,12 @@
 import crypto from "crypto";
 import { type Collection, type Filter } from "mongodb";
 import { catalogProducts, findCatalogProductById } from "../data/products";
+import {
+  getBrandIdForLegacyName,
+  getCategoryIdForLegacyName,
+  type BrandDocument,
+  type CategoryDocument,
+} from "./taxonomy";
 
 export type ProductSpecification = {
   key: string;
@@ -21,7 +27,9 @@ export type ProductDocument = {
   sku: string;
   mpn: string;
   brand: string;
+  brandId: string;
   category: string;
+  categoryId: string;
   pricePi: number;
   stock: number;
   active: boolean;
@@ -197,6 +205,10 @@ const readFitments = (
 export const validateProductInput = (
   input: unknown,
   existingId?: string,
+  refs?: {
+    brand?: Pick<BrandDocument, "id" | "name">;
+    category?: Pick<CategoryDocument, "id" | "name">;
+  },
 ): ProductValidationResult => {
   const source =
     typeof input === "object" && input !== null && !Array.isArray(input)
@@ -207,7 +219,9 @@ export const validateProductInput = (
   const sku = readString(source.sku);
   const mpn = readString(source.mpn);
   const brand = readString(source.brand);
+  const brandId = readString(source.brandId);
   const category = readString(source.category);
+  const categoryId = readString(source.categoryId);
   const description = readString(source.description);
   const pricePi = readFiniteNumber(source.pricePi);
   const stock = readFiniteNumber(source.stock);
@@ -229,12 +243,20 @@ export const validateProductInput = (
     errors.mpn = "Required";
   }
 
-  if (!brand) {
+  if (!brand && !refs?.brand) {
     errors.brand = "Required";
   }
 
-  if (!category) {
+  if (!category && !refs?.category) {
     errors.category = "Required";
+  }
+
+  if (!brandId) {
+    errors.brandId = "Required";
+  }
+
+  if (!categoryId) {
+    errors.categoryId = "Required";
   }
 
   if (pricePi === undefined || pricePi <= 0 || !hasPiAmountPrecision(pricePi)) {
@@ -255,7 +277,9 @@ export const validateProductInput = (
   pushLengthError(errors, "sku", sku, maxTextLengths.sku);
   pushLengthError(errors, "mpn", mpn, maxTextLengths.mpn);
   pushLengthError(errors, "brand", brand, maxTextLengths.brand);
+  pushLengthError(errors, "brandId", brandId, maxTextLengths.id);
   pushLengthError(errors, "category", category, maxTextLengths.category);
+  pushLengthError(errors, "categoryId", categoryId, maxTextLengths.id);
   pushLengthError(errors, "description", description, maxTextLengths.description);
 
   images.forEach((image, index) =>
@@ -289,8 +313,10 @@ export const validateProductInput = (
       name,
       sku,
       mpn,
-      brand,
-      category,
+      brand: refs?.brand?.name ?? brand,
+      brandId,
+      category: refs?.category?.name ?? category,
+      categoryId,
       pricePi: Number((pricePi as number).toFixed(7)),
       stock: stock as number,
       active: readOptionalBoolean(source.active, true),
@@ -309,7 +335,9 @@ const catalogToProductDocument = (now: Date): ProductDocument[] =>
     sku: product.sku,
     mpn: product.mpn,
     brand: product.brand,
+    brandId: getBrandIdForLegacyName(product.brand),
     category: product.category,
+    categoryId: getCategoryIdForLegacyName(product.category),
     pricePi: product.price,
     stock: product.stock,
     active: product.active,
@@ -336,13 +364,23 @@ export const seedProductsCollection = async (
   }
 };
 
-export const serializeProduct = (product: ProductDocument) => ({
+export const serializeProduct = (
+  product: ProductDocument,
+  refs?: {
+    brand?: Pick<BrandDocument, "name" | "active">;
+    category?: Pick<CategoryDocument, "name" | "active">;
+  },
+) => ({
   id: product.id,
   name: product.name,
   sku: product.sku,
   mpn: product.mpn,
-  brand: product.brand,
-  category: product.category,
+  brand: refs?.brand?.name ?? product.brand,
+  brandId: product.brandId,
+  brandActive: refs?.brand?.active,
+  category: refs?.category?.name ?? product.category,
+  categoryId: product.categoryId,
+  categoryActive: refs?.category?.active,
   pricePi: product.pricePi,
   stock: product.stock,
   active: product.active,

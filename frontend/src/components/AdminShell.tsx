@@ -13,9 +13,11 @@ type AdminMeResponse = {
 const adminNavItems = [
   { label: "Dashboard", to: "/admin", end: true },
   { label: "Products", to: "/admin/products" },
+  { label: "Categories", to: "/admin/categories" },
+  { label: "Brands", to: "/admin/brands" },
 ];
 
-const placeholderItems = ["Categories", "Orders", "Customers", "Brands"];
+const placeholderItems = ["Orders", "Customers"];
 
 const AdminShell = () => {
   const {

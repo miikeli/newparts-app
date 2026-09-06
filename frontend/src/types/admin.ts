@@ -22,7 +22,11 @@ export type AdminProduct = {
   sku: string;
   mpn: string;
   brand: string;
+  brandId: string;
+  brandActive?: boolean;
   category: string;
+  categoryId: string;
+  categoryActive?: boolean;
   pricePi: number;
   stock: number;
   active: boolean;
@@ -34,16 +38,67 @@ export type AdminProduct = {
   updatedAt: string;
 };
 
+export type AdminCategory = {
+  id: string;
+  name: string;
+  slug: string;
+  parentId: string | null;
+  parentName?: string;
+  active: boolean;
+  sortOrder: number;
+  description: string;
+  image: string;
+  productCount: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type AdminBrand = {
+  id: string;
+  name: string;
+  slug: string;
+  active: boolean;
+  description: string;
+  logo: string;
+  productCount: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type AdminProductsResponse = {
   products: AdminProduct[];
   total: number;
   page: number;
   pageSize: number;
   totalPages: number;
-  categories: string[];
-  brands: string[];
+  categories: AdminCategory[];
+  brands: AdminBrand[];
 };
 
 export type AdminProductResponse = {
   product: AdminProduct;
+};
+
+export type AdminCategoriesResponse = {
+  categories: AdminCategory[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+};
+
+export type AdminCategoryResponse = {
+  category: AdminCategory;
+};
+
+export type AdminBrandsResponse = {
+  brands: AdminBrand[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+};
+
+export type AdminBrandResponse = {
+  brand: AdminBrand;
 };

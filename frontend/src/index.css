@@ -1740,6 +1740,7 @@ button {
 .admin-filter-bar input,
 .admin-filter-bar select,
 .admin-form-grid input,
+.admin-form-grid select,
 .admin-form-grid textarea,
 .admin-image-row input,
 .admin-spec-row input,
@@ -1767,6 +1768,10 @@ button {
   color: #32445a;
   padding: 0 12px;
   font-weight: 900;
+}
+
+.admin-filter-bar-compact {
+  grid-template-columns: minmax(220px, 1fr) 180px auto;
 }
 
 .admin-message {

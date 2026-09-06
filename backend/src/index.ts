@@ -16,6 +16,11 @@ import {
   seedProductsCollection,
   type ProductDocument,
 } from "./services/products";
+import {
+  seedTaxonomyAndProductRelations,
+  type BrandDocument,
+  type CategoryDocument,
+} from "./services/taxonomy";
 
 // We must import typedefs for ts-node-dev to pick them up when they change (even though tsc would supposedly
 // have no problem here)
@@ -135,6 +140,8 @@ const start = async () => {
     const orderCollection = db.collection("orders");
     const userProfileCollection = db.collection("user_profiles");
     const productCollection = db.collection<ProductDocument>("products");
+    const categoryCollection = db.collection<CategoryDocument>("categories");
+    const brandCollection = db.collection<BrandDocument>("brands");
     await orderCollection.createIndex({ pi_payment_id: 1 }, { unique: true });
     await orderCollection.createIndex(
       { orderNumber: 1 },
@@ -148,10 +155,39 @@ const start = async () => {
     await productCollection.createIndex({ sku: 1 }, { unique: true });
     await productCollection.createIndex({ category: 1 });
     await productCollection.createIndex({ brand: 1 });
+    await productCollection.createIndex({ categoryId: 1 });
+    await productCollection.createIndex({ brandId: 1 });
+    await categoryCollection.createIndex({ id: 1 }, { unique: true });
+    await categoryCollection.createIndex(
+      { slug: 1 },
+      {
+        unique: true,
+        partialFilterExpression: { deletedAt: { $exists: false } },
+      },
+    );
+    await categoryCollection.createIndex({ parentId: 1 });
+    await categoryCollection.createIndex({ active: 1 });
+    await brandCollection.createIndex({ id: 1 }, { unique: true });
+    await brandCollection.createIndex(
+      { slug: 1 },
+      {
+        unique: true,
+        partialFilterExpression: { deletedAt: { $exists: false } },
+      },
+    );
+    await brandCollection.createIndex({ name: 1 });
+    await brandCollection.createIndex({ active: 1 });
     await seedProductsCollection(productCollection);
+    await seedTaxonomyAndProductRelations(
+      productCollection,
+      categoryCollection,
+      brandCollection,
+    );
     app.locals.orderCollection = orderCollection;
     app.locals.userProfileCollection = userProfileCollection;
     app.locals.productCollection = productCollection;
+    app.locals.categoryCollection = categoryCollection;
+    app.locals.brandCollection = brandCollection;
     app.locals.userCollection = db.collection("users");
     console.log("Connected to MongoDB");
 

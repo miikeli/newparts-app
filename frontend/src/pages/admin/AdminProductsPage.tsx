@@ -2,7 +2,12 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { axiosClient } from "../../lib/axiosClient";
 import { getPiAuthConfig } from "../../lib/piAuth";
-import type { AdminProduct, AdminProductsResponse } from "../../types/admin";
+import type {
+  AdminBrand,
+  AdminCategory,
+  AdminProduct,
+  AdminProductsResponse,
+} from "../../types/admin";
 
 const formatPi = (amount: number) => `${amount.toFixed(2)} Pi`;
 
@@ -20,14 +25,14 @@ const getStockStatus = (stock: number) => {
 
 const AdminProductsPage = () => {
   const [products, setProducts] = useState<AdminProduct[]>([]);
-  const [categories, setCategories] = useState<string[]>([]);
-  const [brands, setBrands] = useState<string[]>([]);
+  const [categories, setCategories] = useState<AdminCategory[]>([]);
+  const [brands, setBrands] = useState<AdminBrand[]>([]);
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
-  const [category, setCategory] = useState("");
-  const [brand, setBrand] = useState("");
+  const [categoryId, setCategoryId] = useState("");
+  const [brandId, setBrandId] = useState("");
   const [stockStatus, setStockStatus] = useState("");
   const [status, setStatus] = useState("");
   const [sortBy, setSortBy] = useState<"name" | "pricePi" | "stock">("name");
@@ -40,14 +45,14 @@ const AdminProductsPage = () => {
       page,
       pageSize: 10,
       search,
-      category,
-      brand,
+      categoryId,
+      brandId,
       stockStatus,
       status,
       sortBy,
       sortDir,
     }),
-    [brand, category, page, search, sortBy, sortDir, status, stockStatus],
+    [brandId, categoryId, page, search, sortBy, sortDir, status, stockStatus],
   );
 
   const loadProducts = useCallback(async () => {
@@ -81,8 +86,8 @@ const AdminProductsPage = () => {
 
   const resetFilters = () => {
     setSearch("");
-    setCategory("");
-    setBrand("");
+    setCategoryId("");
+    setBrandId("");
     setStockStatus("");
     setStatus("");
     setSortBy("name");
@@ -160,16 +165,17 @@ const AdminProductsPage = () => {
         <label>
           Category
           <select
-            value={category}
+            value={categoryId}
             onChange={(event) => {
-              setCategory(event.target.value);
+              setCategoryId(event.target.value);
               setPage(1);
             }}
           >
             <option value="">All categories</option>
             {categories.map((item) => (
-              <option key={item} value={item}>
-                {item}
+              <option key={item.id} value={item.id}>
+                {item.parentName ? `${item.parentName} > ${item.name}` : item.name}
+                {!item.active ? " (Inactive)" : ""}
               </option>
             ))}
           </select>
@@ -177,16 +183,17 @@ const AdminProductsPage = () => {
         <label>
           Brand
           <select
-            value={brand}
+            value={brandId}
             onChange={(event) => {
-              setBrand(event.target.value);
+              setBrandId(event.target.value);
               setPage(1);
             }}
           >
             <option value="">All brands</option>
             {brands.map((item) => (
-              <option key={item} value={item}>
-                {item}
+              <option key={item.id} value={item.id}>
+                {item.name}
+                {!item.active ? " (Inactive)" : ""}
               </option>
             ))}
           </select>
@@ -274,8 +281,14 @@ const AdminProductsPage = () => {
                     <small>{product.mpn}</small>
                   </td>
                   <td>{product.name}</td>
-                  <td>{product.category}</td>
-                  <td>{product.brand}</td>
+                  <td>
+                    {product.category}
+                    {product.categoryActive === false && <small>Inactive category</small>}
+                  </td>
+                  <td>
+                    {product.brand}
+                    {product.brandActive === false && <small>Inactive brand</small>}
+                  </td>
                   <td>{formatPi(product.pricePi)}</td>
                   <td>
                     <strong>{product.stock}</strong>

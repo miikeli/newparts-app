@@ -3,6 +3,10 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { axiosClient } from "../../lib/axiosClient";
 import { getPiAuthConfig } from "../../lib/piAuth";
 import type {
+  AdminBrand,
+  AdminBrandsResponse,
+  AdminCategoriesResponse,
+  AdminCategory,
   AdminProduct,
   AdminProductFitment,
   AdminProductResponse,
@@ -16,8 +20,8 @@ type ProductForm = {
   name: string;
   sku: string;
   mpn: string;
-  brand: string;
-  category: string;
+  brandId: string;
+  categoryId: string;
   pricePi: string;
   stock: string;
   active: boolean;
@@ -31,8 +35,8 @@ const emptyProductForm: ProductForm = {
   name: "",
   sku: "",
   mpn: "",
-  brand: "",
-  category: "",
+  brandId: "",
+  categoryId: "",
   pricePi: "",
   stock: "0",
   active: true,
@@ -63,8 +67,8 @@ const productToForm = (product: AdminProduct): ProductForm => ({
   name: product.name,
   sku: product.sku,
   mpn: product.mpn,
-  brand: product.brand,
-  category: product.category,
+  brandId: product.brandId,
+  categoryId: product.categoryId,
   pricePi: String(product.pricePi),
   stock: String(product.stock),
   active: product.active,
@@ -85,8 +89,8 @@ const cleanFormPayload = (form: ProductForm) => ({
   name: form.name,
   sku: form.sku,
   mpn: form.mpn,
-  brand: form.brand,
-  category: form.category,
+  brandId: form.brandId,
+  categoryId: form.categoryId,
   pricePi: Number(form.pricePi),
   stock: Number(form.stock),
   active: form.active,
@@ -113,12 +117,35 @@ const cleanFormPayload = (form: ProductForm) => ({
     ),
 });
 
+const buildCategoryLabel = (
+  category: AdminCategory,
+  categoriesById: { [id: string]: AdminCategory },
+) => {
+  const names = [category.name];
+  let parentId = category.parentId;
+
+  for (let depth = 0; depth < 20 && parentId; depth += 1) {
+    const parent = categoriesById[parentId];
+
+    if (!parent) {
+      break;
+    }
+
+    names.unshift(parent.name);
+    parentId = parent.parentId;
+  }
+
+  return names.join(" > ");
+};
+
 const AdminProductEditorPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const isNewProduct = !id;
   const [activeTab, setActiveTab] = useState<EditorTab>("info");
   const [form, setForm] = useState<ProductForm>(emptyProductForm);
+  const [brands, setBrands] = useState<AdminBrand[]>([]);
+  const [categories, setCategories] = useState<AdminCategory[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
@@ -129,30 +156,54 @@ const AdminProductEditorPage = () => {
     [isNewProduct],
   );
 
-  useEffect(() => {
-    if (isNewProduct || !id) {
-      setForm(emptyProductForm);
-      return;
-    }
+  const categoriesById = useMemo(() => {
+    const result: { [id: string]: AdminCategory } = {};
 
+    categories.forEach((category) => {
+      result[category.id] = category;
+    });
+
+    return result;
+  }, [categories]);
+
+  useEffect(() => {
     let isMounted = true;
 
-    const loadProduct = async () => {
+    const loadEditorData = async () => {
       setIsLoading(true);
       setError("");
 
       try {
-        const response = await axiosClient.get<AdminProductResponse>(
-          `/admin/products/${id}`,
-          getPiAuthConfig(),
-        );
+        const [brandsResponse, categoriesResponse, productResponse] =
+          await Promise.all([
+            axiosClient.get<AdminBrandsResponse>("/admin/brands", {
+              ...getPiAuthConfig(),
+              params: { pageSize: 100, sortBy: "name" },
+            }),
+            axiosClient.get<AdminCategoriesResponse>("/admin/categories", {
+              ...getPiAuthConfig(),
+              params: { pageSize: 100, sortBy: "sortOrder" },
+            }),
+            isNewProduct || !id
+              ? Promise.resolve(null)
+              : axiosClient.get<AdminProductResponse>(
+                  `/admin/products/${id}`,
+                  getPiAuthConfig(),
+                ),
+          ]);
 
         if (isMounted) {
-          setForm(productToForm(response.data.product));
+          setBrands(brandsResponse.data.brands);
+          setCategories(categoriesResponse.data.categories);
+          setForm(
+            productResponse
+              ? productToForm(productResponse.data.product)
+              : emptyProductForm,
+          );
         }
       } catch {
         if (isMounted) {
-          setError("Nije moguće učitati proizvod.");
+          setError("Nije moguće učitati podatke editora.");
         }
       } finally {
         if (isMounted) {
@@ -161,7 +212,7 @@ const AdminProductEditorPage = () => {
       }
     };
 
-    loadProduct();
+    loadEditorData();
 
     return () => {
       isMounted = false;
@@ -324,19 +375,37 @@ const AdminProductEditorPage = () => {
                 </label>
                 <label>
                   Brand
-                  <input
-                    value={form.brand}
-                    onChange={(event) => updateField("brand", event.target.value)}
-                  />
+                  <select
+                    value={form.brandId}
+                    onChange={(event) =>
+                      updateField("brandId", event.target.value)
+                    }
+                  >
+                    <option value="">Select brand</option>
+                    {brands.map((brand) => (
+                      <option key={brand.id} value={brand.id}>
+                        {brand.name}
+                        {!brand.active ? " (Inactive)" : ""}
+                      </option>
+                    ))}
+                  </select>
                 </label>
                 <label>
                   Category
-                  <input
-                    value={form.category}
+                  <select
+                    value={form.categoryId}
                     onChange={(event) =>
-                      updateField("category", event.target.value)
+                      updateField("categoryId", event.target.value)
                     }
-                  />
+                  >
+                    <option value="">Select category</option>
+                    {categories.map((category) => (
+                      <option key={category.id} value={category.id}>
+                        {buildCategoryLabel(category, categoriesById)}
+                        {!category.active ? " (Inactive)" : ""}
+                      </option>
+                    ))}
+                  </select>
                 </label>
                 <label>
                   Price Pi

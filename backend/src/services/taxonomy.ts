@@ -1,0 +1,533 @@
+import crypto from "crypto";
+import { type Collection, type Filter } from "mongodb";
+import { catalogProducts } from "../data/products";
+import { type ProductDocument } from "./products";
+
+export type CategoryDocument = {
+  id: string;
+  name: string;
+  slug: string;
+  parentId?: string | null;
+  active: boolean;
+  sortOrder: number;
+  description?: string;
+  image?: string;
+  createdAt: Date;
+  updatedAt: Date;
+  deletedAt?: Date;
+};
+
+export type BrandDocument = {
+  id: string;
+  name: string;
+  slug: string;
+  active: boolean;
+  description?: string;
+  logo?: string;
+  createdAt: Date;
+  updatedAt: Date;
+  deletedAt?: Date;
+};
+
+type ValidationResult<T> =
+  | {
+      ok: true;
+      value: T;
+    }
+  | {
+      ok: false;
+      errors: { [field: string]: string };
+    };
+
+const maxTextLengths = {
+  id: 80,
+  name: 120,
+  slug: 120,
+  description: 1000,
+  image: 600,
+  logo: 600,
+};
+
+const categoryLegacyMap: { [name: string]: string } = {
+  Kočnice: "brake-pads",
+  Filteri: "filters",
+  Paljenje: "ignition",
+  Motor: "engine",
+  Ovjes: "suspension",
+  Upravljanje: "steering",
+  Gorivo: "fuel",
+  Hlađenje: "cooling",
+  Elektrika: "electrical",
+  Klima: "climate",
+};
+
+const readString = (value: unknown) =>
+  typeof value === "string" ? value.trim() : "";
+
+const readOptionalBoolean = (value: unknown, fallback: boolean) =>
+  typeof value === "boolean" ? value : fallback;
+
+const readInteger = (value: unknown, fallback: number) => {
+  const parsed = Number(value);
+
+  return Number.isSafeInteger(parsed) ? parsed : fallback;
+};
+
+export const slugify = (value: string) =>
+  value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, maxTextLengths.slug);
+
+const createEntityId = (prefix: string, slug: string) =>
+  `${prefix}_${slug || crypto.randomBytes(4).toString("hex")}`;
+
+const pushLengthError = (
+  errors: { [field: string]: string },
+  field: string,
+  value: string | undefined,
+  maxLength: number,
+) => {
+  if (value && value.length > maxLength) {
+    errors[field] = `Max ${maxLength} characters`;
+  }
+};
+
+const validateSlug = (
+  slug: string,
+  errors: { [field: string]: string },
+) => {
+  if (!slug) {
+    errors.slug = "Required";
+    return;
+  }
+
+  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) {
+    errors.slug = "Use lowercase letters, numbers and hyphens";
+  }
+};
+
+export const getCategoryIdForLegacyName = (name: string) =>
+  categoryLegacyMap[name] || createEntityId("cat", slugify(name));
+
+export const getBrandIdForLegacyName = (name: string) =>
+  createEntityId("brand", slugify(name));
+
+export const validateCategoryInput = (
+  input: unknown,
+  existingId?: string,
+): ValidationResult<Omit<CategoryDocument, "createdAt" | "updatedAt" | "deletedAt">> => {
+  const source =
+    typeof input === "object" && input !== null && !Array.isArray(input)
+      ? (input as { [field: string]: unknown })
+      : {};
+  const errors: { [field: string]: string } = {};
+  const name = readString(source.name);
+  const slug = slugify(readString(source.slug) || name);
+  const parentId = readString(source.parentId) || null;
+  const id = existingId || readString(source.id) || createEntityId("cat", slug);
+  const active = readOptionalBoolean(source.active, true);
+  const sortOrder = readInteger(source.sortOrder, 0);
+  const description = readString(source.description);
+  const image = readString(source.image);
+
+  if (!name) {
+    errors.name = "Required";
+  }
+
+  validateSlug(slug, errors);
+
+  if (!Number.isSafeInteger(sortOrder) || sortOrder < -100000 || sortOrder > 100000) {
+    errors.sortOrder = "Use an integer sort order";
+  }
+
+  if (parentId && parentId === id) {
+    errors.parentId = "Category cannot be its own parent";
+  }
+
+  pushLengthError(errors, "id", id, maxTextLengths.id);
+  pushLengthError(errors, "name", name, maxTextLengths.name);
+  pushLengthError(errors, "slug", slug, maxTextLengths.slug);
+  pushLengthError(errors, "description", description, maxTextLengths.description);
+  pushLengthError(errors, "image", image, maxTextLengths.image);
+
+  if (Object.keys(errors).length > 0) {
+    return { ok: false, errors };
+  }
+
+  return {
+    ok: true,
+    value: {
+      id,
+      name,
+      slug,
+      parentId,
+      active,
+      sortOrder,
+      description: description || undefined,
+      image: image || undefined,
+    },
+  };
+};
+
+export const validateBrandInput = (
+  input: unknown,
+  existingId?: string,
+): ValidationResult<Omit<BrandDocument, "createdAt" | "updatedAt" | "deletedAt">> => {
+  const source =
+    typeof input === "object" && input !== null && !Array.isArray(input)
+      ? (input as { [field: string]: unknown })
+      : {};
+  const errors: { [field: string]: string } = {};
+  const name = readString(source.name);
+  const slug = slugify(readString(source.slug) || name);
+  const id = existingId || readString(source.id) || createEntityId("brand", slug);
+  const active = readOptionalBoolean(source.active, true);
+  const description = readString(source.description);
+  const logo = readString(source.logo);
+
+  if (!name) {
+    errors.name = "Required";
+  }
+
+  validateSlug(slug, errors);
+  pushLengthError(errors, "id", id, maxTextLengths.id);
+  pushLengthError(errors, "name", name, maxTextLengths.name);
+  pushLengthError(errors, "slug", slug, maxTextLengths.slug);
+  pushLengthError(errors, "description", description, maxTextLengths.description);
+  pushLengthError(errors, "logo", logo, maxTextLengths.logo);
+
+  if (Object.keys(errors).length > 0) {
+    return { ok: false, errors };
+  }
+
+  return {
+    ok: true,
+    value: {
+      id,
+      name,
+      slug,
+      active,
+      description: description || undefined,
+      logo: logo || undefined,
+    },
+  };
+};
+
+export const serializeCategory = (
+  category: CategoryDocument,
+  productCount = 0,
+  parentName?: string,
+) => ({
+  id: category.id,
+  name: category.name,
+  slug: category.slug,
+  parentId: category.parentId ?? null,
+  parentName,
+  active: category.active,
+  sortOrder: category.sortOrder,
+  description: category.description ?? "",
+  image: category.image ?? "",
+  createdAt: category.createdAt,
+  updatedAt: category.updatedAt,
+  productCount,
+});
+
+export const serializeBrand = (brand: BrandDocument, productCount = 0) => ({
+  id: brand.id,
+  name: brand.name,
+  slug: brand.slug,
+  active: brand.active,
+  description: brand.description ?? "",
+  logo: brand.logo ?? "",
+  createdAt: brand.createdAt,
+  updatedAt: brand.updatedAt,
+  productCount,
+});
+
+const defaultCategories: Omit<CategoryDocument, "createdAt" | "updatedAt">[] = [
+  {
+    id: "brake-system",
+    name: "Brake System",
+    slug: "brake-system",
+    parentId: null,
+    active: true,
+    sortOrder: 10,
+    description: "Brake system replacement parts.",
+  },
+  {
+    id: "brake-pads",
+    name: "Brake Pads",
+    slug: "brake-pads",
+    parentId: "brake-system",
+    active: true,
+    sortOrder: 11,
+    description: "Front and rear brake pad sets.",
+  },
+  {
+    id: "brake-rotors",
+    name: "Brake Rotors",
+    slug: "brake-rotors",
+    parentId: "brake-system",
+    active: true,
+    sortOrder: 12,
+    description: "Brake discs and rotors.",
+  },
+  {
+    id: "engine",
+    name: "Engine",
+    slug: "engine",
+    parentId: null,
+    active: true,
+    sortOrder: 20,
+    description: "Engine service and repair parts.",
+  },
+  {
+    id: "filters",
+    name: "Filters",
+    slug: "filters",
+    parentId: "engine",
+    active: true,
+    sortOrder: 21,
+    description: "Oil, air and service filters.",
+  },
+  {
+    id: "ignition",
+    name: "Ignition",
+    slug: "ignition",
+    parentId: "engine",
+    active: true,
+    sortOrder: 22,
+    description: "Ignition service parts.",
+  },
+  {
+    id: "suspension",
+    name: "Suspension",
+    slug: "suspension",
+    parentId: null,
+    active: true,
+    sortOrder: 30,
+    description: "Suspension and ride control parts.",
+  },
+  {
+    id: "electrical",
+    name: "Electrical",
+    slug: "electrical",
+    parentId: null,
+    active: true,
+    sortOrder: 40,
+    description: "Electrical and battery parts.",
+  },
+];
+
+export const assertNoCategoryCycle = async (
+  categoryCollection: Collection<CategoryDocument>,
+  categoryId: string,
+  parentId?: string | null,
+) => {
+  if (!parentId) {
+    return;
+  }
+
+  let currentParentId: string | null | undefined = parentId;
+
+  for (let depth = 0; depth < 50 && currentParentId; depth += 1) {
+    if (currentParentId === categoryId) {
+      throw new Error("category_parent_cycle");
+    }
+
+    const parent: CategoryDocument | null = await categoryCollection.findOne({
+      id: currentParentId,
+      deletedAt: { $exists: false },
+    } as Filter<CategoryDocument>);
+
+    currentParentId = parent?.parentId;
+  }
+};
+
+const upsertCategory = async (
+  categoryCollection: Collection<CategoryDocument>,
+  category: Omit<CategoryDocument, "createdAt" | "updatedAt">,
+  now: Date,
+) => {
+  await categoryCollection.updateOne(
+    { id: category.id },
+    {
+      $setOnInsert: {
+        ...category,
+        createdAt: now,
+        updatedAt: now,
+      },
+    },
+    { upsert: true },
+  );
+};
+
+const upsertBrand = async (
+  brandCollection: Collection<BrandDocument>,
+  brand: Omit<BrandDocument, "createdAt" | "updatedAt">,
+  now: Date,
+) => {
+  await brandCollection.updateOne(
+    { id: brand.id },
+    {
+      $setOnInsert: {
+        ...brand,
+        createdAt: now,
+        updatedAt: now,
+      },
+    },
+    { upsert: true },
+  );
+};
+
+export const seedTaxonomyAndProductRelations = async (
+  productCollection: Collection<ProductDocument>,
+  categoryCollection: Collection<CategoryDocument>,
+  brandCollection: Collection<BrandDocument>,
+) => {
+  const now = new Date();
+
+  for (const category of defaultCategories) {
+    await upsertCategory(categoryCollection, category, now);
+  }
+
+  const productBrands = await productCollection.distinct("brand", {
+    deletedAt: { $exists: false },
+  });
+  const productCategories = await productCollection.distinct("category", {
+    deletedAt: { $exists: false },
+  });
+  const catalogBrands = catalogProducts.map((product) => product.brand);
+  const catalogCategories = catalogProducts.map((product) => product.category);
+  const brandNames = Array.from(new Set([...catalogBrands, ...productBrands].filter(Boolean)));
+  const categoryNames = Array.from(
+    new Set([...catalogCategories, ...productCategories].filter(Boolean)),
+  );
+
+  for (const brandName of brandNames) {
+    const name = String(brandName);
+    await upsertBrand(
+      brandCollection,
+      {
+        id: getBrandIdForLegacyName(name),
+        name,
+        slug: slugify(name),
+        active: true,
+        description: "",
+        logo: "",
+      },
+      now,
+    );
+  }
+
+  for (const categoryName of categoryNames) {
+    const name = String(categoryName);
+    const knownCategoryId = getCategoryIdForLegacyName(name);
+    const existing = await categoryCollection.findOne({
+      id: knownCategoryId,
+    } as Filter<CategoryDocument>);
+
+    if (!existing) {
+      await upsertCategory(
+        categoryCollection,
+        {
+          id: knownCategoryId,
+          name,
+          slug: slugify(name),
+          parentId: null,
+          active: true,
+          sortOrder: 100,
+          description: "",
+          image: "",
+        },
+        now,
+      );
+    }
+  }
+
+  const brands = await brandCollection.find({
+    deletedAt: { $exists: false },
+  } as Filter<BrandDocument>).toArray();
+  const categories = await categoryCollection.find({
+    deletedAt: { $exists: false },
+  } as Filter<CategoryDocument>).toArray();
+  const brandByName: { [name: string]: BrandDocument } = {};
+  const brandById: { [id: string]: BrandDocument } = {};
+  const brandBySlug: { [slug: string]: BrandDocument } = {};
+  const categoryByLegacyName: { [name: string]: CategoryDocument } = {};
+  const categoryById: { [id: string]: CategoryDocument } = {};
+  const categoryBySlug: { [slug: string]: CategoryDocument } = {};
+
+  brands.forEach((brand) => {
+    brandByName[brand.name] = brand;
+    brandByName[brand.name.toLowerCase()] = brand;
+    brandById[brand.id] = brand;
+    brandBySlug[brand.slug] = brand;
+  });
+
+  categories.forEach((category) => {
+    categoryByLegacyName[category.name] = category;
+    categoryByLegacyName[category.name.toLowerCase()] = category;
+    categoryById[category.id] = category;
+    categoryBySlug[category.slug] = category;
+  });
+
+  categoryNames.forEach((name) => {
+    const categoryId = getCategoryIdForLegacyName(String(name));
+    const category = categories.find((item) => item.id === categoryId);
+
+    if (category) {
+      categoryByLegacyName[String(name)] = category;
+    }
+  });
+
+  const products = await productCollection.find({
+    deletedAt: { $exists: false },
+  } as Filter<ProductDocument>).toArray();
+
+  for (const product of products) {
+    const productBrand = typeof product.brand === "string" ? product.brand : "";
+    const productCategory =
+      typeof product.category === "string" ? product.category : "";
+    const legacyBrandId = productBrand
+      ? getBrandIdForLegacyName(productBrand)
+      : "";
+    const legacyCategoryId = productCategory
+      ? getCategoryIdForLegacyName(productCategory)
+      : "";
+    const brand = product.brandId
+      ? brandById[product.brandId]
+      : brandByName[productBrand] ||
+        brandByName[productBrand.toLowerCase()] ||
+        brandById[legacyBrandId] ||
+        brandBySlug[slugify(productBrand)];
+    const category = product.categoryId
+      ? categoryById[product.categoryId]
+      : categoryByLegacyName[productCategory] ||
+        categoryByLegacyName[productCategory.toLowerCase()] ||
+        categoryById[legacyCategoryId] ||
+        categoryBySlug[slugify(productCategory)];
+    const update: Partial<ProductDocument> = {};
+
+    if (brand && product.brandId !== brand.id) {
+      update.brandId = brand.id;
+      update.brand = brand.name;
+    }
+
+    if (category && product.categoryId !== category.id) {
+      update.categoryId = category.id;
+      update.category = category.name;
+    }
+
+    if (Object.keys(update).length > 0) {
+      await productCollection.updateOne(
+        { id: product.id },
+        { $set: { ...update, updatedAt: new Date() } },
+      );
+    }
+  }
+};
