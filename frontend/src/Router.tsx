@@ -13,7 +13,9 @@ import AdminProductEditorPage from "./pages/admin/AdminProductEditorPage.tsx";
 import AdminProductsPage from "./pages/admin/AdminProductsPage.tsx";
 import EngagementTasksPage from "./pages/EngagementTasksPage.tsx";
 import OrderDetailPage from "./pages/OrderDetailPage.tsx";
+import PrivacyPage from "./pages/PrivacyPage.tsx";
 import ProductDetailPage from "./pages/ProductDetailPage.tsx";
+import TermsPage from "./pages/TermsPage.tsx";
 
 export const router = createBrowserRouter([
   {
@@ -39,6 +41,14 @@ export const router = createBrowserRouter([
       {
         path: "account/orders/:orderNumber",
         element: <OrderDetailPage />,
+      },
+      {
+        path: "privacy",
+        element: <PrivacyPage />,
+      },
+      {
+        path: "terms",
+        element: <TermsPage />,
       },
     ],
   },

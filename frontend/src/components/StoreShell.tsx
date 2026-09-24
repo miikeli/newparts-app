@@ -1,4 +1,5 @@
 import { Outlet } from "react-router-dom";
+import Footer from "./Footer";
 import Header from "./Header";
 import SignIn from "./SignIn";
 import { useAuth } from "../hooks/useAuth";
@@ -48,6 +49,8 @@ const StoreShell = () => {
       />
 
       <Outlet context={{ isAuthenticated, requireAuth }} />
+
+      <Footer />
 
       {showSignIn && (
         <SignIn

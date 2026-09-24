@@ -2095,6 +2095,123 @@ button {
   line-height: 1.5;
 }
 
+.site-footer {
+  border-top: 1px solid #e3e9f1;
+  background: #101a31;
+  color: #ffffff;
+}
+
+.site-footer-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 22px 0;
+}
+
+.site-footer-inner > div {
+  display: grid;
+  gap: 4px;
+}
+
+.site-footer-inner strong {
+  font-size: 16px;
+  font-weight: 900;
+}
+
+.site-footer-inner span {
+  color: #b8c3d3;
+  font-size: 13px;
+}
+
+.site-footer nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.site-footer a {
+  color: #dbeafe;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.site-footer a:hover {
+  color: #ffffff;
+}
+
+.legal-page {
+  padding: 34px 0 70px;
+  background: #f6f8fb;
+}
+
+.legal-container {
+  max-width: 900px;
+}
+
+.legal-header {
+  margin: 18px 0 22px;
+  border: 1px solid #e0e6ed;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 28px;
+  box-shadow: 0 12px 34px rgba(20, 32, 51, 0.06);
+}
+
+.legal-header p {
+  margin: 0 0 8px;
+  color: #1268d6;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.legal-header h1 {
+  margin: 0 0 10px;
+  color: #142033;
+  font-size: 38px;
+  line-height: 1.12;
+}
+
+.legal-header span {
+  display: block;
+  max-width: 720px;
+  color: #56667a;
+  line-height: 1.6;
+}
+
+.legal-page section {
+  margin-top: 14px;
+  border: 1px solid #e0e6ed;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 24px 28px;
+}
+
+.legal-page h2 {
+  margin: 0 0 10px;
+  color: #142033;
+  font-size: 21px;
+}
+
+.legal-page p,
+.legal-page li {
+  color: #4f6075;
+  line-height: 1.7;
+}
+
+.legal-page p {
+  margin: 0 0 12px;
+}
+
+.legal-page p:last-child {
+  margin-bottom: 0;
+}
+
+.legal-page ul {
+  margin: 0;
+  padding-left: 22px;
+}
+
 @media (max-width: 900px) {
   .vehicle-grid {
     grid-template-columns: repeat(2, 1fr);
@@ -2142,6 +2259,11 @@ button {
 
   .why-grid {
     grid-template-columns: repeat(2, 1fr);
+  }
+
+  .site-footer-inner {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .admin-shell {
@@ -2376,5 +2498,23 @@ button {
 
   .why-card {
     padding: 24px 18px;
+  }
+
+  .legal-page {
+    padding: 22px 0 48px;
+  }
+
+  .legal-header,
+  .legal-page section {
+    padding: 20px;
+  }
+
+  .legal-header h1 {
+    font-size: 30px;
+  }
+
+  .site-footer nav {
+    flex-direction: column;
+    gap: 8px;
   }
 }
