@@ -1,5 +1,5 @@
 import crypto from "crypto";
-import { type Collection, type Filter } from "mongodb";
+import { type AnyBulkWriteOperation, type Collection, type Filter } from "mongodb";
 import { catalogProducts } from "../data/products";
 import { type ProductDocument } from "./products";
 
@@ -40,6 +40,11 @@ type ValidationResult<T> =
       ok: false;
       errors: { [field: string]: string };
     };
+
+type ProductTaxonomyFields = Pick<
+  ProductDocument,
+  "id" | "brand" | "brandId" | "category" | "categoryId"
+>;
 
 const maxTextLengths = {
   id: 80,
@@ -434,40 +439,274 @@ export const assertNoCategoryCycle = async (
   }
 };
 
-const upsertCategory = async (
+const bulkUpsertCategories = async (
   categoryCollection: Collection<CategoryDocument>,
-  category: Omit<CategoryDocument, "createdAt" | "updatedAt">,
+  categories: Omit<CategoryDocument, "createdAt" | "updatedAt">[],
   now: Date,
 ) => {
-  await categoryCollection.updateOne(
-    { id: category.id },
-    {
-      $setOnInsert: {
-        ...category,
-        createdAt: now,
-        updatedAt: now,
+  if (categories.length === 0) {
+    return;
+  }
+
+  const operations: AnyBulkWriteOperation<CategoryDocument>[] = categories.map(
+    (category) => ({
+      updateOne: {
+        filter: { id: category.id },
+        update: {
+          $setOnInsert: {
+            ...category,
+            createdAt: now,
+            updatedAt: now,
+          },
+        },
+        upsert: true,
       },
-    },
-    { upsert: true },
+    }),
   );
+
+  await categoryCollection.bulkWrite(operations, { ordered: true });
 };
 
-const upsertBrand = async (
+const bulkUpsertBrands = async (
   brandCollection: Collection<BrandDocument>,
-  brand: Omit<BrandDocument, "createdAt" | "updatedAt">,
+  brands: Omit<BrandDocument, "createdAt" | "updatedAt">[],
   now: Date,
 ) => {
-  await brandCollection.updateOne(
-    { id: brand.id },
-    {
-      $setOnInsert: {
-        ...brand,
-        createdAt: now,
-        updatedAt: now,
+  if (brands.length === 0) {
+    return;
+  }
+
+  const operations: AnyBulkWriteOperation<BrandDocument>[] = brands.map(
+    (brand) => ({
+      updateOne: {
+        filter: { id: brand.id },
+        update: {
+          $setOnInsert: {
+            ...brand,
+            createdAt: now,
+            updatedAt: now,
+          },
+        },
+        upsert: true,
       },
-    },
-    { upsert: true },
+    }),
   );
+
+  await brandCollection.bulkWrite(operations, { ordered: true });
+};
+
+const bulkUpdateProductTaxonomy = async (
+  productCollection: Collection<ProductDocument>,
+  operations: AnyBulkWriteOperation<ProductDocument>[],
+) => {
+  if (operations.length === 0) {
+    return;
+  }
+
+  await productCollection.bulkWrite(operations, { ordered: false });
+};
+
+const uniqueById = <T extends { id: string }>(items: T[]) => {
+  const byId = new Map<string, T>();
+
+  items.forEach((item) => {
+    if (!byId.has(item.id)) {
+      byId.set(item.id, item);
+    }
+  });
+
+  return Array.from(byId.values());
+};
+
+const uniqueByIdOrSlug = <T extends { id: string; slug: string }>(items: T[]) => {
+  const result: T[] = [];
+  const seenIds = new Set<string>();
+  const seenSlugs = new Set<string>();
+
+  items.forEach((item) => {
+    if (seenIds.has(item.id) || seenSlugs.has(item.slug)) {
+      return;
+    }
+
+    seenIds.add(item.id);
+    seenSlugs.add(item.slug);
+    result.push(item);
+  });
+
+  return result;
+};
+
+const buildBrandSeeds = (names: unknown[]) =>
+  uniqueById(
+    names
+      .map((brandName) => String(brandName).trim())
+      .filter(Boolean)
+      .map((name) => ({
+        id: getBrandIdForLegacyName(name),
+        name,
+        slug: slugify(name),
+        active: true,
+        description: "",
+        logo: "",
+      })),
+  );
+
+const buildCategorySeeds = (names: unknown[]) =>
+  uniqueById(
+    names
+      .map((categoryName) => String(categoryName).trim())
+      .filter(Boolean)
+      .map((name) => {
+        const id = getCategoryIdForLegacyName(name);
+        const localized = getCategoryLocalizedNames(id, name);
+
+        return {
+          id,
+          name: localized.nameEn,
+          nameMe: localized.nameMe,
+          nameEn: localized.nameEn,
+          slug: slugify(localized.nameEn),
+          parentId: null,
+          active: true,
+          sortOrder: 100,
+          description: "",
+          image: "",
+        };
+      }),
+  );
+
+const buildCategoryLocalizationUpdates = (
+  categories: CategoryDocument[],
+) => {
+  const operations: AnyBulkWriteOperation<CategoryDocument>[] = [];
+
+  categories.forEach((category) => {
+    const localized = getCategoryLocalizedNames(category.id, category.name);
+    const update: Partial<CategoryDocument> = {};
+
+    if (!category.nameMe) {
+      update.nameMe = localized.nameMe;
+    }
+
+    if (!category.nameEn) {
+      update.nameEn = localized.nameEn;
+    }
+
+    if (Object.keys(update).length > 0) {
+      operations.push({
+        updateOne: {
+          filter: { id: category.id },
+          update: { $set: { ...update, updatedAt: new Date() } },
+        },
+      });
+    }
+  });
+
+  return operations;
+};
+
+const indexBrandRelations = (brands: BrandDocument[]) => {
+  const brandByName: { [name: string]: BrandDocument } = {};
+  const brandById: { [id: string]: BrandDocument } = {};
+  const brandBySlug: { [slug: string]: BrandDocument } = {};
+
+  brands.forEach((brand) => {
+    brandByName[brand.name] = brand;
+    brandByName[brand.name.toLowerCase()] = brand;
+    brandById[brand.id] = brand;
+    brandBySlug[brand.slug] = brand;
+  });
+
+  return { brandByName, brandById, brandBySlug };
+};
+
+const indexCategoryRelations = (
+  categories: CategoryDocument[],
+  categoryNames: unknown[],
+) => {
+  const categoryByLegacyName: { [name: string]: CategoryDocument } = {};
+  const categoryById: { [id: string]: CategoryDocument } = {};
+  const categoryBySlug: { [slug: string]: CategoryDocument } = {};
+
+  categories.forEach((category) => {
+    categoryByLegacyName[category.name] = category;
+    categoryByLegacyName[category.name.toLowerCase()] = category;
+    categoryById[category.id] = category;
+    categoryBySlug[category.slug] = category;
+  });
+
+  categoryNames.forEach((name) => {
+    const label = String(name);
+    const categoryId = getCategoryIdForLegacyName(label);
+    const category = categoryById[categoryId];
+
+    if (category) {
+      categoryByLegacyName[label] = category;
+      categoryByLegacyName[label.toLowerCase()] = category;
+    }
+  });
+
+  return { categoryByLegacyName, categoryById, categoryBySlug };
+};
+
+const buildProductTaxonomyUpdates = (
+  products: ProductTaxonomyFields[],
+  brandIndexes: ReturnType<typeof indexBrandRelations>,
+  categoryIndexes: ReturnType<typeof indexCategoryRelations>,
+) => {
+  const operations: AnyBulkWriteOperation<ProductDocument>[] = [];
+
+  for (const product of products) {
+    const productBrand = typeof product.brand === "string" ? product.brand : "";
+    const productCategory =
+      typeof product.category === "string" ? product.category : "";
+    const legacyBrandId = productBrand
+      ? getBrandIdForLegacyName(productBrand)
+      : "";
+    const legacyCategoryId = productCategory
+      ? getCategoryIdForLegacyName(productCategory)
+      : "";
+    const brand = product.brandId
+      ? brandIndexes.brandById[product.brandId]
+      : brandIndexes.brandByName[productBrand] ||
+        brandIndexes.brandByName[productBrand.toLowerCase()] ||
+        brandIndexes.brandById[legacyBrandId] ||
+        brandIndexes.brandBySlug[slugify(productBrand)];
+    const category = product.categoryId
+      ? categoryIndexes.categoryById[product.categoryId]
+      : categoryIndexes.categoryByLegacyName[productCategory] ||
+        categoryIndexes.categoryByLegacyName[productCategory.toLowerCase()] ||
+        categoryIndexes.categoryById[legacyCategoryId] ||
+        categoryIndexes.categoryBySlug[slugify(productCategory)];
+    const update: Partial<ProductDocument> = {};
+
+    if (brand && product.brandId !== brand.id) {
+      update.brandId = brand.id;
+    }
+
+    if (brand && product.brand !== brand.name) {
+      update.brand = brand.name;
+    }
+
+    if (category && product.categoryId !== category.id) {
+      update.categoryId = category.id;
+    }
+
+    if (category && product.category !== category.name) {
+      update.category = category.name;
+    }
+
+    if (Object.keys(update).length > 0) {
+      operations.push({
+        updateOne: {
+          filter: { id: product.id },
+          update: { $set: { ...update, updatedAt: new Date() } },
+        },
+      });
+    }
+  }
+
+  return operations;
 };
 
 export const seedTaxonomyAndProductRelations = async (
@@ -476,28 +715,6 @@ export const seedTaxonomyAndProductRelations = async (
   brandCollection: Collection<BrandDocument>,
 ) => {
   const now = new Date();
-
-  for (const category of defaultCategories) {
-    await upsertCategory(categoryCollection, category, now);
-    await categoryCollection.updateOne(
-      {
-        id: category.id,
-        $or: [
-          { nameMe: { $exists: false } },
-          { nameMe: "" },
-          { nameEn: { $exists: false } },
-          { nameEn: "" },
-        ],
-      },
-      {
-        $set: {
-          nameMe: category.nameMe,
-          nameEn: category.nameEn,
-          updatedAt: now,
-        },
-      },
-    );
-  }
 
   const productBrands = await productCollection.distinct("brand", {
     deletedAt: { $exists: false },
@@ -512,60 +729,26 @@ export const seedTaxonomyAndProductRelations = async (
     new Set([...catalogCategories, ...productCategories].filter(Boolean)),
   );
 
-  for (const brandName of brandNames) {
-    const name = String(brandName);
-    await upsertBrand(
-      brandCollection,
-      {
-        id: getBrandIdForLegacyName(name),
-        name,
-        slug: slugify(name),
-        active: true,
-        description: "",
-        logo: "",
-      },
-      now,
-    );
-  }
+  await bulkUpsertCategories(
+    categoryCollection,
+    uniqueByIdOrSlug([
+      ...defaultCategories,
+      ...buildCategorySeeds(categoryNames),
+    ]),
+    now,
+  );
+  await bulkUpsertBrands(brandCollection, buildBrandSeeds(brandNames), now);
 
-  for (const categoryName of categoryNames) {
-    const name = String(categoryName);
-    const knownCategoryId = getCategoryIdForLegacyName(name);
-    const existing = await categoryCollection.findOne({
-      id: knownCategoryId,
-    } as Filter<CategoryDocument>);
+  const seededCategories = await categoryCollection.find({
+    deletedAt: { $exists: false },
+  } as Filter<CategoryDocument>).toArray();
+  const categoryLocalizationUpdates =
+    buildCategoryLocalizationUpdates(seededCategories);
 
-    const localized = getCategoryLocalizedNames(knownCategoryId, name);
-
-    if (!existing) {
-      await upsertCategory(
-        categoryCollection,
-        {
-          id: knownCategoryId,
-          name: localized.nameEn,
-          nameMe: localized.nameMe,
-          nameEn: localized.nameEn,
-          slug: slugify(localized.nameEn),
-          parentId: null,
-          active: true,
-          sortOrder: 100,
-          description: "",
-          image: "",
-        },
-        now,
-      );
-    } else if (!existing.nameMe || !existing.nameEn) {
-      await categoryCollection.updateOne(
-        { id: knownCategoryId },
-        {
-          $set: {
-            nameMe: existing.nameMe || localized.nameMe,
-            nameEn: existing.nameEn || localized.nameEn,
-            updatedAt: now,
-          },
-        },
-      );
-    }
+  if (categoryLocalizationUpdates.length > 0) {
+    await categoryCollection.bulkWrite(categoryLocalizationUpdates, {
+      ordered: false,
+    });
   }
 
   const brands = await brandCollection.find({
@@ -574,79 +757,25 @@ export const seedTaxonomyAndProductRelations = async (
   const categories = await categoryCollection.find({
     deletedAt: { $exists: false },
   } as Filter<CategoryDocument>).toArray();
-  const brandByName: { [name: string]: BrandDocument } = {};
-  const brandById: { [id: string]: BrandDocument } = {};
-  const brandBySlug: { [slug: string]: BrandDocument } = {};
-  const categoryByLegacyName: { [name: string]: CategoryDocument } = {};
-  const categoryById: { [id: string]: CategoryDocument } = {};
-  const categoryBySlug: { [slug: string]: CategoryDocument } = {};
-
-  brands.forEach((brand) => {
-    brandByName[brand.name] = brand;
-    brandByName[brand.name.toLowerCase()] = brand;
-    brandById[brand.id] = brand;
-    brandBySlug[brand.slug] = brand;
-  });
-
-  categories.forEach((category) => {
-    categoryByLegacyName[category.name] = category;
-    categoryByLegacyName[category.name.toLowerCase()] = category;
-    categoryById[category.id] = category;
-    categoryBySlug[category.slug] = category;
-  });
-
-  categoryNames.forEach((name) => {
-    const categoryId = getCategoryIdForLegacyName(String(name));
-    const category = categories.find((item) => item.id === categoryId);
-
-    if (category) {
-      categoryByLegacyName[String(name)] = category;
-    }
-  });
+  const brandIndexes = indexBrandRelations(brands);
+  const categoryIndexes = indexCategoryRelations(categories, categoryNames);
 
   const products = await productCollection.find({
     deletedAt: { $exists: false },
-  } as Filter<ProductDocument>).toArray();
+  } as Filter<ProductDocument>)
+    .project<ProductTaxonomyFields>({
+      id: 1,
+      brand: 1,
+      brandId: 1,
+      category: 1,
+      categoryId: 1,
+    })
+    .toArray();
+  const productUpdates = buildProductTaxonomyUpdates(
+    products,
+    brandIndexes,
+    categoryIndexes,
+  );
 
-  for (const product of products) {
-    const productBrand = typeof product.brand === "string" ? product.brand : "";
-    const productCategory =
-      typeof product.category === "string" ? product.category : "";
-    const legacyBrandId = productBrand
-      ? getBrandIdForLegacyName(productBrand)
-      : "";
-    const legacyCategoryId = productCategory
-      ? getCategoryIdForLegacyName(productCategory)
-      : "";
-    const brand = product.brandId
-      ? brandById[product.brandId]
-      : brandByName[productBrand] ||
-        brandByName[productBrand.toLowerCase()] ||
-        brandById[legacyBrandId] ||
-        brandBySlug[slugify(productBrand)];
-    const category = product.categoryId
-      ? categoryById[product.categoryId]
-      : categoryByLegacyName[productCategory] ||
-        categoryByLegacyName[productCategory.toLowerCase()] ||
-        categoryById[legacyCategoryId] ||
-        categoryBySlug[slugify(productCategory)];
-    const update: Partial<ProductDocument> = {};
-
-    if (brand && product.brandId !== brand.id) {
-      update.brandId = brand.id;
-      update.brand = brand.name;
-    }
-
-    if (category && product.categoryId !== category.id) {
-      update.categoryId = category.id;
-      update.category = category.name;
-    }
-
-    if (Object.keys(update).length > 0) {
-      await productCollection.updateOne(
-        { id: product.id },
-        { $set: { ...update, updatedAt: new Date() } },
-      );
-    }
-  }
+  await bulkUpdateProductTaxonomy(productCollection, productUpdates);
 };

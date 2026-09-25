@@ -43,6 +43,46 @@ const mongoClientOptions = env.mongodb_uri
       },
     };
 
+const redactSensitiveText = (value: string) => {
+  const knownSecrets = [
+    env.mongodb_uri,
+    env.mongo_user,
+    env.mongo_password,
+    env.pi_api_key,
+    env.session_secret,
+  ].filter(Boolean);
+  let redacted = value.replace(
+    /mongodb(?:\+srv)?:\/\/[^\s"'<>]+/gi,
+    "[redacted-mongo-uri]",
+  );
+
+  knownSecrets.forEach((secret) => {
+    redacted = redacted.split(secret).join("[redacted]");
+  });
+
+  return redacted;
+};
+
+const readSafeStartupError = (err: unknown) => {
+  if (!(err instanceof Error)) {
+    return {
+      error: "UnknownError",
+      message: "Unknown startup error",
+    };
+  }
+
+  const maybeMongoError = err as Error & { code?: unknown };
+
+  return {
+    error: err.name,
+    message: redactSensitiveText(err.message),
+    ...(typeof maybeMongoError.code === "number" ||
+    typeof maybeMongoError.code === "string"
+      ? { code: maybeMongoError.code }
+      : {}),
+  };
+};
+
 //
 // I. Initialize and set up the express app and various middlewares and packages:
 //
@@ -196,9 +236,7 @@ const start = async () => {
       console.log(`CORS config: configured to respond to a frontend hosted on ${env.frontend_url}`);
     });
   } catch (err) {
-    console.error("Connection to MongoDB failed", {
-      error: err instanceof Error ? err.name : "UnknownError",
-    });
+    console.error("Backend startup failed", readSafeStartupError(err));
     process.exit(1);
   }
 };
