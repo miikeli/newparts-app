@@ -202,7 +202,7 @@ const start = async () => {
       { slug: 1 },
       {
         unique: true,
-        partialFilterExpression: { deletedAt: { $exists: false } },
+        partialFilterExpression: { deletedAt: null },
       },
     );
     await categoryCollection.createIndex({ parentId: 1 });
@@ -212,7 +212,7 @@ const start = async () => {
       { slug: 1 },
       {
         unique: true,
-        partialFilterExpression: { deletedAt: { $exists: false } },
+        partialFilterExpression: { deletedAt: null },
       },
     );
     await brandCollection.createIndex({ name: 1 });
