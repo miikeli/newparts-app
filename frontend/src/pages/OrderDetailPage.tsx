@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useOutletContext, useParams } from "react-router-dom";
 import type { StoreOutletContext } from "../components/StoreShell";
+import { useI18n, type Language } from "../i18n";
 import { axiosClient } from "../lib/axiosClient";
 import { getPiAuthConfig } from "../lib/piAuth";
 import type { OrderDetail } from "../types/account";
@@ -11,20 +12,50 @@ type OrderResponse = {
 
 const formatPi = (amount?: number) => `${(amount ?? 0).toFixed(2)} Pi`;
 
-const formatDate = (value?: string) => {
+const dateLocaleByLanguage: Record<Language, string> = {
+  me: "sr-Latn-ME",
+  en: "en",
+};
+
+const formatDate = (value: string | undefined, language: Language, fallback: string) => {
   if (!value) {
-    return "Nije dostupno";
+    return fallback;
   }
 
-  return new Intl.DateTimeFormat("sr-Latn-ME").format(new Date(value));
+  return new Intl.DateTimeFormat(dateLocaleByLanguage[language]).format(new Date(value));
+};
+
+const formatStatus = (status: string, t: ReturnType<typeof useI18n>["t"]) => {
+  switch (status) {
+    case "pending":
+      return t("status.pending");
+    case "paid":
+      return t("status.paid");
+    case "processing":
+      return t("status.processing");
+    case "shipped":
+      return t("status.shipped");
+    case "delivered":
+      return t("status.delivered");
+    case "cancelled":
+      return t("status.cancelled");
+    default:
+      return status.charAt(0).toUpperCase() + status.slice(1);
+  }
 };
 
 const OrderDetailPage = () => {
+  const { language, t } = useI18n();
+  const tRef = useRef(t);
   const { orderNumber } = useParams();
   const { isAuthenticated, requireAuth } = useOutletContext<StoreOutletContext>();
   const [order, setOrder] = useState<OrderDetail | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    tRef.current = t;
+  }, [t]);
 
   useEffect(() => {
     if (!isAuthenticated || !orderNumber) {
@@ -48,7 +79,7 @@ const OrderDetailPage = () => {
         }
       } catch {
         if (isMounted) {
-          setError("Nije moguće učitati porudžbinu.");
+          setError(tRef.current("order.loadError"));
         }
       } finally {
         if (isMounted) {
@@ -64,14 +95,20 @@ const OrderDetailPage = () => {
     };
   }, [isAuthenticated, orderNumber]);
 
+  useEffect(() => {
+    document.title = orderNumber
+      ? `${t("account.orderNumber")} ${orderNumber} | NewParts`
+      : t("account.titleTag");
+  }, [orderNumber, t]);
+
   if (!isAuthenticated) {
     return (
       <main className="account-page">
         <div className="shop-container">
           <div className="empty-state">
-            <strong>Pi prijava je potrebna</strong>
-            <p>Prijavi se da vidiš detalje porudžbine.</p>
-            <button onClick={requireAuth}>Pi prijava</button>
+            <strong>{t("account.signInRequiredTitle")}</strong>
+            <p>{t("order.signInRequired")}</p>
+            <button onClick={requireAuth}>{t("header.signIn")}</button>
           </div>
         </div>
       </main>
@@ -82,54 +119,58 @@ const OrderDetailPage = () => {
     <main className="account-page">
       <div className="shop-container">
         <nav className="breadcrumbs" aria-label="Breadcrumb">
-          <Link to="/">Home</Link>
+          <Link to="/">{t("product.home")}</Link>
           <span>/</span>
-          <Link to="/account">Moj nalog</Link>
+          <Link to="/account">{t("order.myAccount")}</Link>
           <span>/</span>
           <strong>{orderNumber}</strong>
         </nav>
 
-        {isLoading && <div className="account-card">Učitavanje porudžbine...</div>}
+        {isLoading && <div className="account-card">{t("order.loading")}</div>}
         {error && <p className="cart-message error">{error}</p>}
 
         {order && (
           <section className="order-detail-card">
             <div className="order-detail-header">
               <div>
-                <p>Order #{order.orderNumber}</p>
-                <h1>{order.status}</h1>
+                <p>{t("account.orderNumber")}{order.orderNumber}</p>
+                <h1>{formatStatus(order.status, t)}</h1>
               </div>
               <div>
-                <span>Datum</span>
-                <strong>{formatDate(order.created_at)}</strong>
+                <span>{t("common.date")}</span>
+                <strong>
+                  {formatDate(order.created_at, language, t("common.unavailable"))}
+                </strong>
               </div>
             </div>
 
             <div className="order-detail-items">
               {order.items.length === 0 ? (
                 <div className="compact-empty">
-                  <strong>Stari format porudžbine</strong>
-                  <p>Detalji artikala nijesu dostupni za ovu porudžbinu.</p>
+                  <strong>{t("order.oldFormat")}</strong>
+                  <p>{t("order.oldFormatHint")}</p>
                 </div>
               ) : (
                 order.items.map((item, index) => (
                   <article className="order-detail-item" key={`${item.productId}-${index}`}>
-                    {item.image && <img src={item.image} alt={item.name ?? "Proizvod"} />}
+                    {item.image && (
+                      <img src={item.image} alt={item.name ?? t("order.productFallback")} />
+                    )}
                     <div>
-                      <strong>{item.name ?? "Proizvod"}</strong>
+                      <strong>{item.name ?? t("order.productFallback")}</strong>
                       {item.brand && <span>{item.brand}</span>}
                       <small>SKU: {item.sku ?? "N/A"} | MPN: {item.mpn ?? "N/A"}</small>
                     </div>
                     <div>
-                      <span>Količina</span>
+                      <span>{t("common.quantity")}</span>
                       <strong>{item.quantity ?? 0}</strong>
                     </div>
                     <div>
-                      <span>Cijena</span>
+                      <span>{t("common.price")}</span>
                       <strong>{formatPi(item.unitPrice)}</strong>
                     </div>
                     <div>
-                      <span>Ukupno</span>
+                      <span>{t("common.total")}</span>
                       <strong>{formatPi(item.lineTotal)}</strong>
                     </div>
                   </article>
@@ -139,7 +180,7 @@ const OrderDetailPage = () => {
 
             <div className="order-detail-grid">
               <section>
-                <h2>Adresa dostave</h2>
+                <h2>{t("order.shippingAddress")}</h2>
                 {order.shippingAddress ? (
                   <address>
                     <strong>{order.shippingAddress.fullName}</strong>
@@ -154,18 +195,18 @@ const OrderDetailPage = () => {
                     </span>
                   </address>
                 ) : (
-                  <p>Adresa nije dostupna za ovu porudžbinu.</p>
+                  <p>{t("order.missingAddress")}</p>
                 )}
               </section>
 
               <section>
-                <h2>Sažetak</h2>
+                <h2>{t("order.summary")}</h2>
                 <div>
-                  <span>Subtotal</span>
+                  <span>{t("common.subtotal")}</span>
                   <strong>{formatPi(order.subtotal)}</strong>
                 </div>
                 <div>
-                  <span>Total</span>
+                  <span>{t("common.total")}</span>
                   <strong>{formatPi(order.total)}</strong>
                 </div>
                 {order.txid && (

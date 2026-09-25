@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useOutletContext } from "react-router-dom";
 import type { StoreOutletContext } from "../components/StoreShell";
 import { useCart } from "../context/CartContext";
 import { usePayments } from "../hooks/usePayments";
+import { useI18n } from "../i18n";
 import { axiosClient } from "../lib/axiosClient";
 import { getPiAuthConfig } from "../lib/piAuth";
 import type { UserShippingAddress } from "../types/account";
@@ -28,6 +29,8 @@ type AddressesResponse = {
 };
 
 const CartPage = () => {
+  const { t } = useI18n();
+  const tRef = useRef(t);
   const {
     items,
     itemCount,
@@ -48,6 +51,14 @@ const CartPage = () => {
   const [selectedAddressId, setSelectedAddressId] = useState("");
   const [completedOrder, setCompletedOrder] =
     useState<CompletedOrderSummary | null>(null);
+
+  useEffect(() => {
+    document.title = t("cart.titleTag");
+  }, [t]);
+
+  useEffect(() => {
+    tRef.current = t;
+  }, [t]);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -79,7 +90,7 @@ const CartPage = () => {
         );
       } catch {
         if (isMounted) {
-          setCheckoutError("Nije moguće učitati adrese dostave.");
+          setCheckoutError(tRef.current("cart.loadAddressesError"));
         }
       } finally {
         if (isMounted) {
@@ -101,7 +112,7 @@ const CartPage = () => {
     setCompletedOrder(null);
 
     if (!isAuthenticated) {
-      setCheckoutError("Prijavi se kroz Pi Browser prije plaćanja korpe.");
+      setCheckoutError(t("cart.authRequired"));
       requireAuth();
       return;
     }
@@ -112,7 +123,7 @@ const CartPage = () => {
 
     if (!selectedAddressId) {
       setNeedsAddress(true);
-      setCheckoutError("Prije plaćanja dodajte adresu dostave.");
+      setCheckoutError(t("cart.addressRequired"));
       return;
     }
 
@@ -146,7 +157,7 @@ const CartPage = () => {
           clearCart();
         },
         onCancelled: () => {
-          setCheckoutError("Plaćanje je otkazano. Korpa je ostala nepromijenjena.");
+          setCheckoutError(t("cart.cancelled"));
         },
         onError: (message) => {
           setCheckoutError(message);
@@ -160,21 +171,25 @@ const CartPage = () => {
       <div className="shop-container">
         <div className="cart-header">
           <div>
-            <h1>Korpa</h1>
-            <p>{itemCount} artikala</p>
+            <h1>{t("cart.title")}</h1>
+            <p>
+              {itemCount} {t("cart.itemsCount")}
+            </p>
           </div>
 
           <Link className="back-link" to="/">
-            Nastavi kupovinu
+            {t("common.continueShopping")}
           </Link>
         </div>
 
         {completedOrder ? (
           <section className="cart-success">
-            <strong>Narudžba je plaćena</strong>
+            <strong>{t("cart.paidTitle")}</strong>
             <p>
-              Plaćanje je završeno za {completedOrder.itemCount} artikala u
-              iznosu {formatPi(completedOrder.total)}.
+              {t("cart.paidText", {
+                count: completedOrder.itemCount,
+                total: formatPi(completedOrder.total),
+              })}
             </p>
             <dl>
               <div>
@@ -197,16 +212,16 @@ const CartPage = () => {
               ))}
             </div>
             <Link className="back-link" to="/">
-              Nazad na shop
+              {t("common.backToShop")}
             </Link>
           </section>
         ) : items.length === 0 ? (
           <div className="empty-state">
-            <strong>Korpa je prazna</strong>
-            <p>Dodaj proizvod iz shopa da pripremiš narudžbu.</p>
-            <Link to="/">Nazad na shop</Link>
+            <strong>{t("cart.empty")}</strong>
+            <p>{t("cart.emptyHint")}</p>
+            <Link to="/">{t("common.backToShop")}</Link>
             <button className="cart-checkout-button" disabled>
-              Plati sa Pi
+              {t("cart.payWithPi")}
             </button>
           </div>
         ) : (
@@ -231,7 +246,7 @@ const CartPage = () => {
 
                   <div className="cart-quantity">
                     <label htmlFor={`cart-quantity-${item.productId}`}>
-                      Količina
+                      {t("common.quantity")}
                     </label>
                     <input
                       id={`cart-quantity-${item.productId}`}
@@ -254,46 +269,46 @@ const CartPage = () => {
                     className="cart-remove"
                     onClick={() => removeItem(item.productId)}
                   >
-                    Ukloni
+                    {t("common.remove")}
                   </button>
                 </article>
               ))}
             </div>
 
             <aside className="cart-summary">
-              <h2>Sažetak</h2>
+              <h2>{t("cart.summary")}</h2>
               <div>
-                <span>Subtotal</span>
+                <span>{t("common.subtotal")}</span>
                 <strong>{formatPi(subtotal)}</strong>
               </div>
               <div>
-                <span>Dostava</span>
-                <strong>Obračun kasnije</strong>
+                <span>{t("cart.shipping")}</span>
+                <strong>{t("cart.shippingLater")}</strong>
               </div>
               <div className="cart-total">
-                <span>Ukupno</span>
+                <span>{t("common.total")}</span>
                 <strong>{formatPi(subtotal)}</strong>
               </div>
 
               {!isAuthenticated && (
                 <p className="cart-auth-notice">
-                  Pi prijava je potrebna prije plaćanja.
+                  {t("cart.piAuthNotice")}
                 </p>
               )}
 
               {isAuthenticated && (
                 <section className="cart-address-section">
                   <div>
-                    <h3>Adresa dostave</h3>
-                    <Link to="/account">Upravljaj adresama</Link>
+                    <h3>{t("cart.shippingAddress")}</h3>
+                    <Link to="/account">{t("cart.manageAddresses")}</Link>
                   </div>
 
                   {isLoadingAddresses ? (
-                    <p>Učitavanje adresa...</p>
+                    <p>{t("cart.loadingAddresses")}</p>
                   ) : addresses.length === 0 ? (
                     <div className="cart-address-empty">
-                      <strong>Prije plaćanja dodajte adresu dostave.</strong>
-                      <Link to="/account">Dodaj adresu</Link>
+                      <strong>{t("cart.addressRequired")}</strong>
+                      <Link to="/account">{t("cart.addAddress")}</Link>
                     </div>
                   ) : (
                     <div className="cart-address-options">
@@ -312,7 +327,7 @@ const CartPage = () => {
                           />
                           <span>
                             <strong>
-                              {address.label || "Adresa dostave"}
+                              {address.label || t("cart.addressFallback")}
                             </strong>
                             {address.fullName}
                             <small>
@@ -333,7 +348,7 @@ const CartPage = () => {
 
               {needsAddress && (
                 <Link className="cart-address-link" to="/account">
-                  Unesi adresu dostave
+                  {t("cart.enterAddress")}
                 </Link>
               )}
 
@@ -348,8 +363,8 @@ const CartPage = () => {
                 }
               >
                 {isLoading || isLoadingAddresses
-                  ? "Provjera podataka..."
-                  : "Plati sa Pi"}
+                  ? t("cart.checking")
+                  : t("cart.payWithPi")}
               </button>
             </aside>
           </section>

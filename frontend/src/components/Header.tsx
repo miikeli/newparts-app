@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
 import { Link } from "react-router-dom";
+import { useI18n, type Language } from "../i18n";
 import type { User } from "../types/pi.ts";
 
 interface HeaderProps {
@@ -74,6 +75,8 @@ const userSectionStyle: CSSProperties = {
   display: "flex",
   alignItems: "center",
   gap: 9,
+  flexWrap: "wrap",
+  justifyContent: "flex-end",
 };
 
 const usernameStyle: CSSProperties = {
@@ -133,6 +136,16 @@ const cartBadgeStyle: CSSProperties = {
   fontWeight: 900,
 };
 
+const languageSelectStyle: CSSProperties = {
+  minHeight: 42,
+  border: "1px solid #d7dee8",
+  borderRadius: 10,
+  padding: "0 9px",
+  color: "#32445a",
+  background: "white",
+  fontWeight: 800,
+};
+
 const Header = ({
   user,
   onSignIn,
@@ -141,24 +154,36 @@ const Header = ({
   isLoading,
   cartItemCount = 0,
 }: HeaderProps) => {
+  const { language, setLanguage, t } = useI18n();
+
   return (
     <header style={headerStyle}>
       <div style={innerStyle}>
-        <Link to="/" style={logoAreaStyle} aria-label="Newparts shop">
+        <Link to="/" style={logoAreaStyle} aria-label="NewParts shop">
           <div style={logoStyle}>N</div>
 
           <div style={brandStyle}>
             <span style={brandNameStyle}>NEWPARTS</span>
-            <span style={brandCaptionStyle}>Novi auto djelovi</span>
+            <span style={brandCaptionStyle}>{t("header.caption")}</span>
           </div>
         </Link>
 
         <div style={userSectionStyle}>
-          <Link to="/account" style={cartLinkStyle} aria-label="Moj nalog">
+          <select
+            style={languageSelectStyle}
+            aria-label={t("header.language")}
+            value={language}
+            onChange={(event) => setLanguage(event.target.value as Language)}
+          >
+            <option value="me">CG</option>
+            <option value="en">EN</option>
+          </select>
+
+          <Link to="/account" style={cartLinkStyle} aria-label={t("header.account")}>
             👤
           </Link>
 
-          <Link to="/cart" style={cartLinkStyle} aria-label="Korpa">
+          <Link to="/cart" style={cartLinkStyle} aria-label={t("header.cart")}>
             🛒
             {cartItemCount > 0 && (
               <span style={cartBadgeStyle}>{cartItemCount}</span>
@@ -185,7 +210,7 @@ const Header = ({
                 onClick={onSignOut}
                 disabled={isLoading}
               >
-                Odjava
+                {t("header.signOut")}
               </button>
             </>
           ) : (
@@ -194,7 +219,7 @@ const Header = ({
               onClick={onSignIn}
               disabled={isLoading}
             >
-              Pi prijava
+              {t("header.signIn")}
             </button>
           )}
         </div>

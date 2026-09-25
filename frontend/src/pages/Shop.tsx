@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useOutletContext } from "react-router-dom";
 
 import ProductCard from "../components/ProductCard";
@@ -16,15 +16,7 @@ import {
   type Product,
   type VehicleSelection,
 } from "../data/products";
-
-const categoryTiles = [
-  { name: "Kočione pločice", icon: "🧱" },
-  { name: "Diskovi", icon: "⚙️" },
-  { name: "Filteri", icon: "🧰" },
-  { name: "Amortizeri", icon: "🔩" },
-  { name: "Akumulatori", icon: "🔋" },
-  { name: "Svjećice", icon: "⚡" },
-];
+import { useI18n } from "../i18n";
 
 const uniqueValues = (values: string[]) => Array.from(new Set(values));
 
@@ -41,6 +33,7 @@ const fitsVehicle = (product: Product, vehicle: VehicleSelection) =>
   );
 
 const Shop = () => {
+  const { t } = useI18n();
   const navigate = useNavigate();
   const { isAuthenticated, requireAuth } = useOutletContext<StoreOutletContext>();
   const [searchTerm, setSearchTerm] = useState("");
@@ -56,6 +49,22 @@ const Shop = () => {
     isAuthenticated,
     onRequireAuth: requireAuth,
   });
+
+  useEffect(() => {
+    document.title = t("app.storeTitle");
+  }, [t]);
+
+  const categoryTiles = useMemo(
+    () => [
+      { name: t("shop.categoryBrakePads"), icon: "🧱" },
+      { name: t("shop.categoryRotors"), icon: "⚙️" },
+      { name: t("shop.categoryFilters"), icon: "🧰" },
+      { name: t("shop.categoryShocks"), icon: "🔩" },
+      { name: t("shop.categoryBatteries"), icon: "🔋" },
+      { name: t("shop.categorySparkPlugs"), icon: "⚡" },
+    ],
+    [t],
+  );
 
   const availableYears = useMemo(
     () => uniqueValues(vehicleOptions.map((vehicle) => vehicle.year)),
@@ -173,7 +182,7 @@ const Shop = () => {
             <span className="search-icon">⌕</span>
             <input
               type="search"
-              placeholder="Pretraži dijelove, OEM broj, brend..."
+              placeholder={t("shop.searchPlaceholder")}
               value={searchTerm}
               onChange={(event) => setSearchTerm(event.target.value)}
             />
@@ -183,8 +192,8 @@ const Shop = () => {
         <section className="vehicle-section">
           <div className="shop-container">
             <div className="vehicle-topline">
-              <strong>IZABERI VOZILO</strong>
-              <span>Pronađi po VIN-u</span>
+              <strong>{t("shop.vehicleTitle")}</strong>
+              <span>{t("shop.findByVin")}</span>
             </div>
 
             <div className="vehicle-grid">
@@ -198,7 +207,7 @@ const Shop = () => {
                 }}
               >
                 <option value="" disabled>
-                  Godina
+                  {t("shop.year")}
                 </option>
                 {availableYears.map((year) => (
                   <option key={year}>{year}</option>
@@ -215,7 +224,7 @@ const Shop = () => {
                 disabled={selectedYear === ""}
               >
                 <option value="" disabled>
-                  Marka
+                  {t("shop.make")}
                 </option>
                 {availableMakes.map((make) => (
                   <option key={make}>{make}</option>
@@ -231,7 +240,7 @@ const Shop = () => {
                 disabled={selectedMake === ""}
               >
                 <option value="" disabled>
-                  Model
+                  {t("shop.model")}
                 </option>
                 {availableModels.map((model) => (
                   <option key={model}>{model}</option>
@@ -244,7 +253,7 @@ const Shop = () => {
                 disabled={selectedModel === ""}
               >
                 <option value="" disabled>
-                  Podmodel
+                  {t("shop.submodel")}
                 </option>
                 {availableSubmodels.map((submodel) => (
                   <option key={submodel}>{submodel}</option>
@@ -256,14 +265,14 @@ const Shop = () => {
                 onClick={applyVehicleFilter}
                 disabled={!canApplyVehicle}
               >
-                GO
+                {t("shop.go")}
               </button>
             </div>
 
             {activeVehicle && (
               <div className="active-vehicle">
                 <span>{getVehicleLabel(activeVehicle)}</span>
-                <button onClick={clearVehicleFilter}>Ukloni vozilo</button>
+                <button onClick={clearVehicleFilter}>{t("shop.removeVehicle")}</button>
               </div>
             )}
           </div>
@@ -301,8 +310,8 @@ const Shop = () => {
           <div className="shop-container">
             <div className="section-header">
               <div>
-                <h2>Shop by Brand</h2>
-                <p>Popularni proizvođači auto djelova.</p>
+                <h2>{t("shop.shopByBrand")}</h2>
+                <p>{t("shop.brandSubtitle")}</p>
               </div>
             </div>
 
@@ -325,13 +334,15 @@ const Shop = () => {
           <div className="shop-container">
             <div className="section-header">
               <div>
-                <h2>Izdvojeni proizvodi</h2>
-                <p>{visibleProducts.length} proizvoda</p>
+                <h2>{t("shop.featuredProducts")}</h2>
+                <p>
+                  {visibleProducts.length} {t("shop.productsCount")}
+                </p>
               </div>
 
               {hasActiveFilters && (
                 <button className="reset-filters" onClick={resetFilters}>
-                  Resetuj filtere
+                  {t("shop.resetFilters")}
                 </button>
               )}
             </div>
@@ -376,13 +387,15 @@ const Shop = () => {
 
               {visibleProducts.length === 0 && (
                 <div className="empty-state">
-                  <strong>Nema pronađenih proizvoda</strong>
+                  <strong>{t("shop.noProducts")}</strong>
                   <p>
                     {activeVehicle
-                      ? `Nema kompatibilnih proizvoda za ${getVehicleLabel(activeVehicle)} uz trenutno aktivne filtere.`
-                      : "Probaj drugi naziv, kategoriju ili brend, ili resetuj filtere."}
+                      ? t("shop.noVehicleProducts", {
+                          vehicle: getVehicleLabel(activeVehicle),
+                        })
+                      : t("shop.noProductsHint")}
                   </p>
-                  <button onClick={resetFilters}>Resetuj filtere</button>
+                  <button onClick={resetFilters}>{t("shop.resetFilters")}</button>
                 </div>
               )}
             </div>
@@ -392,31 +405,31 @@ const Shop = () => {
         <section className="why-section">
           <div className="shop-container">
             <div className="why-card">
-              <h2>Zašto Newparts?</h2>
+              <h2>{t("shop.whyTitle")}</h2>
 
               <div className="why-grid">
                 <div>
                   <span>🚚</span>
-                  <strong>Brza dostava</strong>
-                  <p>Pouzdan servis i brza obrada narudžbi.</p>
+                  <strong>{t("shop.fastDelivery")}</strong>
+                  <p>{t("shop.fastDeliveryText")}</p>
                 </div>
 
                 <div>
                   <span>🔧</span>
-                  <strong>Pravi dio za tvoje vozilo</strong>
-                  <p>Pretraga po vozilu, modelu i kategoriji.</p>
+                  <strong>{t("shop.vehicleFitTitle")}</strong>
+                  <p>{t("shop.vehicleFitText")}</p>
                 </div>
 
                 <div>
                   <span>💬</span>
-                  <strong>Podrška</strong>
-                  <p>Pomoć pri izboru odgovarajućeg dijela.</p>
+                  <strong>{t("shop.supportTitle")}</strong>
+                  <p>{t("shop.supportText")}</p>
                 </div>
 
                 <div>
                   <span>π</span>
-                  <strong>Pi plaćanje</strong>
-                  <p>Direktno plaćanje kroz Pi ekosistem.</p>
+                  <strong>{t("shop.piPaymentTitle")}</strong>
+                  <p>{t("shop.piPaymentText")}</p>
                 </div>
               </div>
             </div>

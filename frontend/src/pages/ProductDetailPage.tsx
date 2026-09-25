@@ -1,18 +1,19 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
 import { useCart } from "../context/CartContext";
 import {
   findProductById,
   type VehicleSelection,
 } from "../data/products";
+import { useI18n } from "../i18n";
 
 const tabs = [
-  "Description",
-  "Specification",
-  "Fitment",
-  "Shipping info",
-  "Warranty",
-  "Return Policy",
+  "description",
+  "specification",
+  "fitment",
+  "shipping",
+  "warranty",
+  "returns",
 ] as const;
 
 type ProductTab = (typeof tabs)[number];
@@ -24,28 +25,29 @@ type ProductDetailLocationState = {
 const getVehicleLabel = (vehicle: VehicleSelection) =>
   `${vehicle.make} ${vehicle.model} ${vehicle.year} ${vehicle.submodel}`;
 
-const getStockStatus = (stock: number) => {
+const getStockStatus = (stock: number, t: ReturnType<typeof useI18n>["t"]) => {
   if (stock <= 0) {
     return {
-      label: "Out of stock",
+      label: t("product.outOfStock"),
       className: "out-stock",
     };
   }
 
   if (stock <= 10) {
     return {
-      label: `Low stock (${stock} left)`,
+      label: t("product.lowStock", { stock }),
       className: "low-stock",
     };
   }
 
   return {
-    label: `In stock (${stock})`,
+    label: t("product.inStock", { stock }),
     className: "in-stock",
   };
 };
 
 const ProductDetailPage = () => {
+  const { t } = useI18n();
   const { id } = useParams();
   const location = useLocation();
   const product = id ? findProductById(id) : undefined;
@@ -54,13 +56,19 @@ const ProductDetailPage = () => {
   const { addItem } = useCart();
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [quantity, setQuantity] = useState(1);
-  const [activeTab, setActiveTab] = useState<ProductTab>("Description");
+  const [activeTab, setActiveTab] = useState<ProductTab>("description");
   const [addedMessage, setAddedMessage] = useState("");
 
   const stockStatus = useMemo(
-    () => getStockStatus(product?.stock ?? 0),
-    [product]
+    () => getStockStatus(product?.stock ?? 0, t),
+    [product, t]
   );
+
+  useEffect(() => {
+    document.title = product
+      ? `${product.name} | NewParts`
+      : t("app.storeTitle");
+  }, [product, t]);
 
   const activeVehicleFits = useMemo(() => {
     if (!product || !activeVehicle) {
@@ -81,9 +89,9 @@ const ProductDetailPage = () => {
       <main className="detail-page">
         <div className="shop-container">
           <div className="empty-state">
-            <strong>Proizvod nije pronađen</strong>
-            <p>Provjeri link ili se vrati na shop.</p>
-            <Link to="/">Nazad na shop</Link>
+            <strong>{t("product.notFound")}</strong>
+            <p>{t("product.notFoundHint")}</p>
+            <Link to="/">{t("common.backToShop")}</Link>
           </div>
         </div>
       </main>
@@ -92,7 +100,7 @@ const ProductDetailPage = () => {
 
   const addToCart = () => {
     addItem(product.id, quantity);
-    setAddedMessage("Dodano u korpu");
+    setAddedMessage(t("product.addedToCart"));
   };
 
   const decreaseQuantity = () => {
@@ -109,7 +117,7 @@ const ProductDetailPage = () => {
     <main className="detail-page">
       <div className="shop-container">
         <nav className="breadcrumbs" aria-label="Breadcrumb">
-          <Link to="/">Home</Link>
+          <Link to="/">{t("product.home")}</Link>
           <span>/</span>
           <Link to="/">{product.category}</Link>
           <span>/</span>
@@ -124,7 +132,7 @@ const ProductDetailPage = () => {
                   key={image}
                   className={selectedImageIndex === index ? "active is-selected" : ""}
                   onClick={() => setSelectedImageIndex(index)}
-                  aria-label={`Prikaži sliku ${index + 1}`}
+                  aria-label={`${t("product.showImage")} ${index + 1}`}
                 >
                   <img src={image} alt="" />
                 </button>
@@ -140,7 +148,9 @@ const ProductDetailPage = () => {
             <div className="product-meta-row">
               <div className="product-brand">{product.brand}</div>
               {product.fitments.length > 0 && (
-                <span className="vehicle-specific-badge">Vehicle Specific</span>
+                <span className="vehicle-specific-badge">
+                  {t("product.vehicleSpecific")}
+                </span>
               )}
             </div>
 
@@ -148,8 +158,8 @@ const ProductDetailPage = () => {
 
             <div className="rating-row">
               <strong>4.8 / 5</strong>
-              <span>Rating placeholder</span>
-              <span>No reviews yet</span>
+              <span>{t("product.ratingPlaceholder")}</span>
+              <span>{t("product.noReviews")}</span>
             </div>
 
             <div className="product-identifiers">
@@ -160,24 +170,24 @@ const ProductDetailPage = () => {
             <p className="product-detail-description">{product.description}</p>
 
             <div className="vehicle-fitment-notice">
-              <strong>Provjeri da li dio odgovara tvom vozilu</strong>
+              <strong>{t("product.checkFitment")}</strong>
               {activeVehicle ? (
                 <p>
-                  Aktivno vozilo: {getVehicleLabel(activeVehicle)}.{" "}
+                  {t("product.activeVehicle")}: {getVehicleLabel(activeVehicle)}.{" "}
                   {activeVehicleFits
-                    ? "Ovaj proizvod je označen kao kompatibilan."
-                    : "Provjeri fitment tabelu prije narudžbe."}
+                    ? t("product.compatible")
+                    : t("product.checkFitmentTable")}
                 </p>
               ) : (
                 <p>
-                  Izaberi vozilo u shopu za bržu provjeru kompatibilnosti.
+                  {t("product.selectVehicleHint")}
                 </p>
               )}
             </div>
 
             <div className="purchase-panel">
               <div>
-                <div className="price-label">Cijena</div>
+                <div className="price-label">{t("common.price")}</div>
                 <div className="detail-price">
                   <strong>{product.price}</strong>
                   <span>Test-Pi</span>
@@ -192,12 +202,12 @@ const ProductDetailPage = () => {
             </div>
 
             <div className="quantity-row">
-              <span>Količina</span>
+              <span>{t("common.quantity")}</span>
               <div className="quantity-stepper">
                 <button
                   onClick={decreaseQuantity}
                   disabled={quantity <= 1 || product.stock <= 0}
-                  aria-label="Smanji količinu"
+                  aria-label={t("product.quantityDecrease")}
                 >
                   -
                 </button>
@@ -205,7 +215,7 @@ const ProductDetailPage = () => {
                 <button
                   onClick={increaseQuantity}
                   disabled={quantity >= product.stock || product.stock <= 0}
-                  aria-label="Povećaj količinu"
+                  aria-label={t("product.quantityIncrease")}
                 >
                   +
                 </button>
@@ -217,7 +227,7 @@ const ProductDetailPage = () => {
               onClick={addToCart}
               disabled={product.stock <= 0}
             >
-              Add to cart
+              {t("product.addToCart")}
             </button>
 
             {addedMessage && <p className="cart-feedback">{addedMessage}</p>}
@@ -233,23 +243,32 @@ const ProductDetailPage = () => {
                 onClick={() => setActiveTab(tab)}
                 aria-pressed={activeTab === tab}
               >
-                {tab}
+                {t(
+                  tab === "description"
+                    ? "product.tabDescription"
+                    : tab === "specification"
+                      ? "product.tabSpecification"
+                      : tab === "fitment"
+                        ? "product.tabFitment"
+                        : tab === "shipping"
+                          ? "product.tabShipping"
+                          : tab === "warranty"
+                            ? "product.tabWarranty"
+                            : "product.tabReturns",
+                )}
               </button>
             ))}
           </div>
 
           <div className="tab-panel">
-            {activeTab === "Description" && (
+            {activeTab === "description" && (
               <div className="description-panel">
                 <p>{product.description}</p>
-                <p>
-                  Demo katalog koristi lokalne podatke za ovu fazu. Prije
-                  narudžbe provjeri fitment tabelu i osnovne specifikacije.
-                </p>
+                <p>{t("product.demoNotice")}</p>
               </div>
             )}
 
-            {activeTab === "Specification" && (
+            {activeTab === "specification" && (
               <dl className="spec-list">
                 {product.specifications.map((spec) => (
                   <div key={spec.label}>
@@ -260,22 +279,22 @@ const ProductDetailPage = () => {
               </dl>
             )}
 
-            {activeTab === "Fitment" &&
+            {activeTab === "fitment" &&
               (product.fitments.length === 0 ? (
                 <div className="empty-state compact-empty">
-                  <strong>Nema fitment podataka</strong>
-                  <p>Kompatibilnost će biti dodana u narednoj fazi kataloga.</p>
+                  <strong>{t("product.noFitment")}</strong>
+                  <p>{t("product.noFitmentHint")}</p>
                 </div>
               ) : (
                 <div className="fitment-table-wrap">
                   <table className="fitment-table">
                     <thead>
                       <tr>
-                        <th>Year</th>
-                        <th>Make</th>
-                        <th>Model</th>
-                        <th>Submodel</th>
-                        <th>Notes</th>
+                        <th>{t("product.fitmentYear")}</th>
+                        <th>{t("product.fitmentMake")}</th>
+                        <th>{t("product.fitmentModel")}</th>
+                        <th>{t("product.fitmentSubmodel")}</th>
+                        <th>{t("product.fitmentNotes")}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -283,11 +302,11 @@ const ProductDetailPage = () => {
                         <tr
                           key={`${fitment.year}-${fitment.make}-${fitment.model}-${fitment.submodel}`}
                         >
-                          <td data-label="Year">{fitment.year}</td>
-                          <td data-label="Make">{fitment.make}</td>
-                          <td data-label="Model">{fitment.model}</td>
-                          <td data-label="Submodel">{fitment.submodel}</td>
-                          <td data-label="Notes">{fitment.notes}</td>
+                          <td data-label={t("product.fitmentYear")}>{fitment.year}</td>
+                          <td data-label={t("product.fitmentMake")}>{fitment.make}</td>
+                          <td data-label={t("product.fitmentModel")}>{fitment.model}</td>
+                          <td data-label={t("product.fitmentSubmodel")}>{fitment.submodel}</td>
+                          <td data-label={t("product.fitmentNotes")}>{fitment.notes}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -295,9 +314,9 @@ const ProductDetailPage = () => {
                 </div>
               ))}
 
-            {activeTab === "Shipping info" && <p>{product.shippingInfo}</p>}
-            {activeTab === "Warranty" && <p>{product.warranty}</p>}
-            {activeTab === "Return Policy" && <p>{product.returnPolicy}</p>}
+            {activeTab === "shipping" && <p>{product.shippingInfo}</p>}
+            {activeTab === "warranty" && <p>{product.warranty}</p>}
+            {activeTab === "returns" && <p>{product.returnPolicy}</p>}
           </div>
         </section>
       </div>

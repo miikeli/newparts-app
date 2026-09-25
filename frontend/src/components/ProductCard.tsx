@@ -1,4 +1,5 @@
 import type { CSSProperties, MouseEvent } from "react";
+import { useI18n } from "../i18n";
 
 interface ProductCardProps {
   name: string;
@@ -147,6 +148,8 @@ const ProductCard = ({
   brand,
   category,
 }: ProductCardProps) => {
+  const { t } = useI18n();
+
   const stopCardNavigation = (event: MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation();
   };
@@ -190,7 +193,7 @@ const ProductCard = ({
             }}
             disabled={disabled}
           >
-            Kupi sa Pi
+            {t("product.buyWithPi")}
           </button>
 
           <button
@@ -201,11 +204,11 @@ const ProductCard = ({
             }}
             disabled={disabled}
           >
-            Kupi sa IRRA
+            {t("product.buyWithIrra")}
           </button>
 
           <p style={demoCaptionStyle}>
-            IRRA cijena je trenutno samo demonstraciona.
+            {t("product.irraDemo")}
           </p>
         </div>
       </div>

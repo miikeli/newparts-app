@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useOutletContext } from "react-router-dom";
 import type { StoreOutletContext } from "../components/StoreShell";
+import { useI18n, type Language } from "../i18n";
 import { axiosClient } from "../lib/axiosClient";
 import { getPiAuthConfig } from "../lib/piAuth";
 import type {
@@ -50,16 +51,37 @@ const emptyAddress: AddressFormState = {
 
 const formatPi = (amount: number) => `${amount.toFixed(2)} Pi`;
 
-const formatDate = (value?: string) => {
-  if (!value) {
-    return "Nije dostupno";
-  }
-
-  return new Intl.DateTimeFormat("sr-Latn-ME").format(new Date(value));
+const dateLocaleByLanguage: Record<Language, string> = {
+  me: "sr-Latn-ME",
+  en: "en",
 };
 
-const normalizeStatus = (status: string) =>
-  status.charAt(0).toUpperCase() + status.slice(1);
+const formatDate = (value: string | undefined, language: Language, fallback: string) => {
+  if (!value) {
+    return fallback;
+  }
+
+  return new Intl.DateTimeFormat(dateLocaleByLanguage[language]).format(new Date(value));
+};
+
+const formatStatus = (status: string, t: ReturnType<typeof useI18n>["t"]) => {
+  switch (status) {
+    case "pending":
+      return t("status.pending");
+    case "paid":
+      return t("status.paid");
+    case "processing":
+      return t("status.processing");
+    case "shipped":
+      return t("status.shipped");
+    case "delivered":
+      return t("status.delivered");
+    case "cancelled":
+      return t("status.cancelled");
+    default:
+      return status.charAt(0).toUpperCase() + status.slice(1);
+  }
+};
 
 const toFormState = (address: UserShippingAddress): AddressFormState => ({
   label: address.label ?? "",
@@ -92,6 +114,8 @@ const addressSummary = (address?: ShippingAddress | null) => {
 };
 
 const AccountPage = () => {
+  const { language, t } = useI18n();
+  const tRef = useRef(t);
   const { isAuthenticated, requireAuth } = useOutletContext<StoreOutletContext>();
   const [activeTab, setActiveTab] = useState<AccountTab>("profile");
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -130,6 +154,14 @@ const AccountPage = () => {
         : current,
     );
   };
+
+  useEffect(() => {
+    document.title = t("account.titleTag");
+  }, [t]);
+
+  useEffect(() => {
+    tRef.current = t;
+  }, [t]);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -173,7 +205,7 @@ const AccountPage = () => {
         }
       } catch {
         if (isMounted) {
-          setError("Nije moguće učitati podatke profila.");
+          setError(tRef.current("account.loadingError"));
         }
       } finally {
         if (isMounted) {
@@ -247,8 +279,8 @@ const AccountPage = () => {
       syncAddresses(response.data);
       setMessage(
         editingAddressId
-          ? "Adresa dostave je ažurirana."
-          : "Adresa dostave je dodata.",
+          ? t("account.addressUpdated")
+          : t("account.addressAdded"),
       );
       closeAddressForm();
     } catch (err) {
@@ -256,7 +288,7 @@ const AccountPage = () => {
         .response?.data;
 
       setFieldErrors(responseData?.errors ?? {});
-      setError(responseData?.message ?? "Nije moguće sačuvati adresu.");
+      setError(responseData?.message ?? t("account.addressSaveError"));
     } finally {
       setIsSaving(false);
     }
@@ -273,14 +305,14 @@ const AccountPage = () => {
       );
 
       syncAddresses(response.data);
-      setMessage("Adresa je obrisana.");
+      setMessage(t("account.addressDeleted"));
       if (editingAddressId === addressId) {
         closeAddressForm();
       }
     } catch (err) {
       const responseData = (err as { response?: { data?: { message?: string } } })
         .response?.data;
-      setError(responseData?.message ?? "Nije moguće obrisati adresu.");
+      setError(responseData?.message ?? t("account.addressDeleteError"));
     }
   };
 
@@ -296,11 +328,11 @@ const AccountPage = () => {
       );
 
       syncAddresses(response.data);
-      setMessage("Podrazumijevana adresa je ažurirana.");
+      setMessage(t("account.defaultUpdated"));
     } catch (err) {
       const responseData = (err as { response?: { data?: { message?: string } } })
         .response?.data;
-      setError(responseData?.message ?? "Nije moguće postaviti podrazumijevanu adresu.");
+      setError(responseData?.message ?? t("account.defaultUpdateError"));
     }
   };
 
@@ -309,9 +341,9 @@ const AccountPage = () => {
       <main className="account-page">
         <div className="shop-container">
           <div className="empty-state">
-            <strong>Pi prijava je potrebna</strong>
-            <p>Prijavi se da vidiš profil, adrese dostave i porudžbine.</p>
-            <button onClick={requireAuth}>Pi prijava</button>
+            <strong>{t("account.signInRequiredTitle")}</strong>
+            <p>{t("account.signInRequiredText")}</p>
+            <button onClick={requireAuth}>{t("header.signIn")}</button>
           </div>
         </div>
       </main>
@@ -323,11 +355,11 @@ const AccountPage = () => {
       <div className="shop-container">
         <div className="account-header">
           <div>
-            <p>Moj nalog</p>
-            <h1>Profil i porudžbine</h1>
+            <p>{t("account.kicker")}</p>
+            <h1>{t("account.heading")}</h1>
           </div>
           <Link className="back-link" to="/">
-            Nazad na shop
+            {t("common.backToShop")}
           </Link>
         </div>
 
@@ -336,24 +368,24 @@ const AccountPage = () => {
             className={activeTab === "profile" ? "active" : ""}
             onClick={() => setActiveTab("profile")}
           >
-            Moj profil
+            {t("account.profileTab")}
           </button>
           <button
             className={activeTab === "shipping" ? "active" : ""}
             onClick={() => setActiveTab("shipping")}
           >
-            Adrese dostave
+            {t("account.shippingTab")}
           </button>
           <button
             className={activeTab === "orders" ? "active" : ""}
             onClick={() => setActiveTab("orders")}
           >
-            Moje porudžbine
+            {t("account.ordersTab")}
           </button>
         </div>
 
         {isLoading ? (
-          <div className="account-card">Učitavanje naloga...</div>
+          <div className="account-card">{t("account.loading")}</div>
         ) : (
           <>
             {error && <p className="cart-message error">{error}</p>}
@@ -361,27 +393,27 @@ const AccountPage = () => {
 
             {activeTab === "profile" && (
               <section className="account-card">
-                <h2>Moj profil</h2>
+                <h2>{t("account.profileTab")}</h2>
                 <dl className="profile-list">
                   <div>
-                    <dt>Pi UID</dt>
-                    <dd>{profile?.pi_uid ?? "Nije dostupno"}</dd>
+                    <dt>{t("account.piUid")}</dt>
+                    <dd>{profile?.pi_uid ?? t("common.unavailable")}</dd>
                   </div>
                   <div>
-                    <dt>Korisničko ime</dt>
-                    <dd>{profile?.username ? `@${profile.username}` : "Nije dostupno"}</dd>
+                    <dt>{t("account.username")}</dt>
+                    <dd>{profile?.username ? `@${profile.username}` : t("common.unavailable")}</dd>
                   </div>
                   <div>
-                    <dt>Podrazumijevana adresa dostave</dt>
+                    <dt>{t("account.defaultAddress")}</dt>
                     <dd>
                       {defaultAddress
                         ? addressSummary(defaultAddress)
-                        : "Nemate podrazumijevanu adresu dostave."}
+                        : t("account.noDefaultAddress")}
                       <button
                         className="text-action"
                         onClick={() => setActiveTab("shipping")}
                       >
-                        Upravljaj adresama
+                        {t("cart.manageAddresses")}
                       </button>
                     </dd>
                   </div>
@@ -389,10 +421,10 @@ const AccountPage = () => {
                 {isAdmin && (
                   <div className="account-admin-action">
                     <div>
-                      <strong>Admin pristup</strong>
-                      <span>Upravljanje katalogom i proizvodima.</span>
+                      <strong>{t("account.adminAccess")}</strong>
+                      <span>{t("account.adminDescription")}</span>
                     </div>
-                    <Link to="/admin">Admin panel</Link>
+                    <Link to="/admin">{t("account.adminPanel")}</Link>
                   </div>
                 )}
               </section>
@@ -401,26 +433,30 @@ const AccountPage = () => {
             {activeTab === "shipping" && (
               <section className="account-card">
                 <div className="section-header">
-                  <h2>Adrese dostave</h2>
+                  <h2>{t("account.shippingTab")}</h2>
                   <button className="account-primary-button" onClick={openNewAddressForm}>
-                    + Dodaj novu adresu
+                    {t("account.addNewAddress")}
                   </button>
                 </div>
 
                 {isFormOpen && (
                   <div className="address-editor">
-                    <h3>{editingAddressId ? "Izmijeni adresu" : "Nova adresa"}</h3>
+                    <h3>
+                      {editingAddressId
+                        ? t("account.editAddress")
+                        : t("account.newAddress")}
+                    </h3>
                     <div className="address-form">
                       {[
-                        ["label", "Naziv adrese / Label"],
-                        ["fullName", "Ime i prezime"],
-                        ["phone", "Telefon"],
-                        ["address1", "Adresa"],
-                        ["address2", "Adresa 2 / stan / sprat"],
-                        ["city", "Grad"],
-                        ["postalCode", "Poštanski broj"],
-                        ["country", "Država"],
-                        ["countryCode", "Kod države"],
+                        ["label", t("account.label")],
+                        ["fullName", t("account.fullName")],
+                        ["phone", t("account.phone")],
+                        ["address1", t("account.address1")],
+                        ["address2", t("account.address2")],
+                        ["city", t("account.city")],
+                        ["postalCode", t("account.postalCode")],
+                        ["country", t("account.country")],
+                        ["countryCode", t("account.countryCode")],
                       ].map(([field, label]) => (
                         <label key={field}>
                           <span>{label}</span>
@@ -444,10 +480,10 @@ const AccountPage = () => {
                         onClick={saveAddress}
                         disabled={isSaving}
                       >
-                        {isSaving ? "Čuvanje..." : "Sačuvaj"}
+                        {isSaving ? t("common.saving") : t("common.save")}
                       </button>
                       <button className="secondary-button" onClick={closeAddressForm}>
-                        Otkaži
+                        {t("common.cancel")}
                       </button>
                     </div>
                   </div>
@@ -455,8 +491,8 @@ const AccountPage = () => {
 
                 {addresses.length === 0 ? (
                   <div className="compact-empty">
-                    <strong>Nemate sačuvane adrese.</strong>
-                    <p>Dodajte adresu dostave prije plaćanja korpe.</p>
+                    <strong>{t("account.noAddresses")}</strong>
+                    <p>{t("account.noAddressesHint")}</p>
                   </div>
                 ) : (
                   <div className="address-card-grid">
@@ -466,8 +502,8 @@ const AccountPage = () => {
                       return (
                         <article className="address-card" key={address.id}>
                           <div>
-                            <strong>{address.label || "Adresa dostave"}</strong>
-                            {isDefault && <span>Podrazumijevana</span>}
+                            <strong>{address.label || t("cart.addressFallback")}</strong>
+                            {isDefault && <span>{t("common.default")}</span>}
                           </div>
                           <address>
                             <strong>{address.fullName}</strong>
@@ -483,14 +519,14 @@ const AccountPage = () => {
                           </address>
                           <div className="address-card-actions">
                             <button onClick={() => openEditAddressForm(address)}>
-                              Izmijeni
+                              {t("common.edit")}
                             </button>
                             <button onClick={() => deleteAddress(address.id)}>
-                              Obriši
+                              {t("common.delete")}
                             </button>
                             {!isDefault && (
                               <button onClick={() => setDefaultAddress(address.id)}>
-                                Postavi kao podrazumijevanu
+                                {t("account.setDefault")}
                               </button>
                             )}
                           </div>
@@ -504,38 +540,44 @@ const AccountPage = () => {
 
             {activeTab === "orders" && (
               <section className="account-card">
-                <h2>Moje porudžbine</h2>
+                <h2>{t("account.ordersTab")}</h2>
                 {orders.length === 0 ? (
                   <div className="compact-empty">
-                    <strong>Nema porudžbina</strong>
-                    <p>Porudžbine će se prikazati nakon prve kupovine.</p>
+                    <strong>{t("account.noOrders")}</strong>
+                    <p>{t("account.noOrdersHint")}</p>
                   </div>
                 ) : (
                   <div className="orders-table-wrap">
                     <table className="orders-table">
                       <thead>
                         <tr>
-                          <th>Order #</th>
-                          <th>Datum</th>
-                          <th>Status</th>
-                          <th>Artikli</th>
-                          <th>Ukupno</th>
+                          <th>{t("account.orderNumber")}</th>
+                          <th>{t("common.date")}</th>
+                          <th>{t("common.status")}</th>
+                          <th>{t("common.items")}</th>
+                          <th>{t("common.total")}</th>
                           <th></th>
                         </tr>
                       </thead>
                       <tbody>
                         {orders.map((order) => (
                           <tr key={order.orderNumber}>
-                            <td data-label="Order #">{order.orderNumber}</td>
-                            <td data-label="Datum">{formatDate(order.created_at)}</td>
-                            <td data-label="Status">{normalizeStatus(order.status)}</td>
-                            <td data-label="Artikli">{order.itemCount}</td>
-                            <td data-label="Ukupno">{formatPi(order.total)}</td>
+                            <td data-label={t("account.orderNumber")}>{order.orderNumber}</td>
+                            <td data-label={t("common.date")}>
+                              {formatDate(order.created_at, language, t("common.unavailable"))}
+                            </td>
+                            <td data-label={t("common.status")}>
+                              {formatStatus(order.status, t)}
+                            </td>
+                            <td data-label={t("common.items")}>{order.itemCount}</td>
+                            <td data-label={t("common.total")}>{formatPi(order.total)}</td>
                             <td>
                               {order.canViewDetail === false ? (
-                                <span>Legacy order</span>
+                                <span>{t("account.legacyOrder")}</span>
                               ) : (
-                                <Link to={`/account/orders/${order.orderNumber}`}>Detalji</Link>
+                                <Link to={`/account/orders/${order.orderNumber}`}>
+                                  {t("common.details")}
+                                </Link>
                               )}
                             </td>
                           </tr>
