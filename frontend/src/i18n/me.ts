@@ -4,7 +4,7 @@ export const me = {
   "account.titleTag": "Moj profil | NewParts",
   "privacy.titleTag": "Politika privatnosti | NewParts",
   "terms.titleTag": "Uslovi korišćenja | NewParts",
-  "common.backToShop": "Nazad na shop",
+  "common.backToShop": "Nazad na prodavnicu",
   "common.continueShopping": "Nastavi kupovinu",
   "common.unavailable": "Nije dostupno",
   "common.loading": "Učitavanje...",
@@ -16,14 +16,14 @@ export const me = {
   "common.details": "Detalji",
   "common.default": "Podrazumijevana",
   "common.total": "Ukupno",
-  "common.subtotal": "Subtotal",
+  "common.subtotal": "Međuzbir",
   "common.status": "Status",
   "common.date": "Datum",
   "common.items": "Artikli",
   "common.quantity": "Količina",
   "common.remove": "Ukloni",
   "common.price": "Cijena",
-  "common.stock": "Stock",
+  "common.stock": "Zaliha",
   "common.category": "Kategorija",
   "common.brand": "Brend",
   "status.pending": "Na čekanju",
@@ -48,9 +48,9 @@ export const me = {
   "shop.make": "Marka",
   "shop.model": "Model",
   "shop.submodel": "Podmodel",
-  "shop.go": "GO",
+  "shop.go": "TRAŽI",
   "shop.removeVehicle": "Ukloni vozilo",
-  "shop.shopByBrand": "Shop po brendu",
+  "shop.shopByBrand": "Kupovina po brendu",
   "shop.brandSubtitle": "Popularni proizvođači auto djelova.",
   "shop.featuredProducts": "Izdvojeni proizvodi",
   "shop.productsCount": "proizvoda",
@@ -77,29 +77,29 @@ export const me = {
   "product.buyWithIrra": "Kupi sa IRRA",
   "product.irraDemo": "IRRA cijena je trenutno samo demonstraciona.",
   "product.notFound": "Proizvod nije pronađen",
-  "product.notFoundHint": "Provjeri link ili se vrati na shop.",
-  "product.home": "Home",
+  "product.notFoundHint": "Provjeri link ili se vrati na prodavnicu.",
+  "product.home": "Početna",
   "product.showImage": "Prikaži sliku",
-  "product.vehicleSpecific": "Vehicle Specific",
-  "product.ratingPlaceholder": "Ocjena placeholder",
-  "product.noReviews": "Nema recenzija",
+  "product.vehicleSpecific": "Za određeno vozilo",
+  "product.ratingPlaceholder": "Ocjena proizvoda",
+  "product.noReviews": "Još nema recenzija",
   "product.checkFitment": "Provjeri da li dio odgovara tvom vozilu",
   "product.activeVehicle": "Aktivno vozilo",
   "product.compatible": "Ovaj proizvod je označen kao kompatibilan.",
-  "product.checkFitmentTable": "Provjeri fitment tabelu prije narudžbe.",
-  "product.selectVehicleHint": "Izaberi vozilo u shopu za bržu provjeru kompatibilnosti.",
+  "product.checkFitmentTable": "Provjeri tabelu kompatibilnosti prije narudžbe.",
+  "product.selectVehicleHint": "Izaberi vozilo u prodavnici za bržu provjeru kompatibilnosti.",
   "product.quantityDecrease": "Smanji količinu",
   "product.quantityIncrease": "Povećaj količinu",
   "product.addToCart": "Dodaj u korpu",
   "product.addedToCart": "Dodano u korpu",
   "product.tabDescription": "Opis",
   "product.tabSpecification": "Specifikacije",
-  "product.tabFitment": "Fitment",
+  "product.tabFitment": "Kompatibilnost",
   "product.tabShipping": "Dostava",
   "product.tabWarranty": "Garancija",
   "product.tabReturns": "Povrat",
-  "product.demoNotice": "Demo katalog koristi lokalne podatke za ovu fazu. Prije narudžbe provjeri fitment tabelu i osnovne specifikacije.",
-  "product.noFitment": "Nema fitment podataka",
+  "product.demoNotice": "Demo katalog koristi lokalne podatke za ovu fazu. Prije narudžbe provjeri tabelu kompatibilnosti i osnovne specifikacije.",
+  "product.noFitment": "Nema podataka o kompatibilnosti",
   "product.noFitmentHint": "Kompatibilnost će biti dodata u narednoj fazi kataloga.",
   "product.fitmentYear": "Godina",
   "product.fitmentMake": "Marka",
@@ -118,7 +118,7 @@ export const me = {
   "cart.paidTitle": "Narudžba je plaćena",
   "cart.paidText": "Plaćanje je završeno za {{count}} artikala u iznosu {{total}}.",
   "cart.empty": "Korpa je prazna",
-  "cart.emptyHint": "Dodaj proizvod iz shopa da pripremiš narudžbu.",
+  "cart.emptyHint": "Dodaj proizvod iz prodavnice da pripremiš narudžbu.",
   "cart.payWithPi": "Plati sa Pi",
   "cart.summary": "Sažetak",
   "cart.shipping": "Dostava",
@@ -157,7 +157,7 @@ export const me = {
   "account.addNewAddress": "+ Dodaj novu adresu",
   "account.editAddress": "Izmijeni adresu",
   "account.newAddress": "Nova adresa",
-  "account.label": "Naziv adrese / Label",
+  "account.label": "Naziv adrese",
   "account.fullName": "Ime i prezime",
   "account.phone": "Telefon",
   "account.address1": "Adresa",
@@ -171,8 +171,8 @@ export const me = {
   "account.setDefault": "Postavi kao podrazumijevanu",
   "account.noOrders": "Nema porudžbina",
   "account.noOrdersHint": "Porudžbine će se prikazati nakon prve kupovine.",
-  "account.orderNumber": "Order #",
-  "account.legacyOrder": "Legacy order",
+  "account.orderNumber": "Porudžbina #",
+  "account.legacyOrder": "Stara porudžbina",
   "order.loadError": "Nije moguće učitati porudžbinu.",
   "order.signInRequired": "Prijavi se da vidiš detalje porudžbine.",
   "order.myAccount": "Moj nalog",
@@ -183,25 +183,25 @@ export const me = {
   "order.shippingAddress": "Adresa dostave",
   "order.missingAddress": "Adresa nije dostupna za ovu porudžbinu.",
   "order.summary": "Sažetak",
-  "privacy.back": "Nazad na shop",
-  "terms.back": "Nazad na shop",
+  "privacy.back": "Nazad na prodavnicu",
+  "terms.back": "Nazad na prodavnicu",
   privacy: {
     title: "Politika privatnosti",
     lastUpdated: "Posljednje ažuriranje: 25.09.2026.",
     intro:
-      "Ova politika objašnjava kako NewParts može obrađivati podatke kada koristite našu ecommerce aplikaciju za nove auto djelove.",
+      "Ova politika objašnjava kako NewParts može obrađivati podatke kada koristite našu aplikaciju za elektronsku trgovinu novim auto djelovima.",
     sections: [
       {
         title: "1. Podaci koje možemo obrađivati",
         paragraphs: [
           "Kada koristite NewParts, možemo obrađivati podatke potrebne za rad aplikacije, uključujući Pi identitet, Pi UID i korisničko ime ako koristite Pi Sign-In. Ako unesete adresu dostave, možemo čuvati ime i prezime, telefon, adresu, grad, poštanski broj, državu i slične podatke potrebne za isporuku.",
-          "Takođe možemo čuvati istoriju porudžbina, stavke u porudžbini, status porudžbine, payment reference, status Pi plaćanja i tehničke podatke potrebne za sigurnost, sesije i osnovno funkcionisanje aplikacije.",
+          "Takođe možemo čuvati istoriju porudžbina, stavke u porudžbini, status porudžbine, reference plaćanja, status Pi plaćanja i tehničke podatke potrebne za sigurnost, sesije i osnovno funkcionisanje aplikacije.",
         ],
       },
       {
-        title: "2. Pi plaćanja i wallet podaci",
+        title: "2. Pi plaćanja i podaci novčanika",
         paragraphs: [
-          "NewParts koristi Pi Platform za autentifikaciju i plaćanja. Ne čuvamo Pi wallet private keys, seed phrase, lozinke walleta ili druge payment tajne. Backend može čuvati payment ID, status, reference i transaction ID kada je to potrebno za evidenciju porudžbine.",
+          "NewParts koristi Pi Platform za autentifikaciju i plaćanja. Ne čuvamo privatne ključeve Pi novčanika, seed fraze, lozinke novčanika ili druge tajne plaćanja. Server može čuvati ID plaćanja, status, reference i ID transakcije kada je to potrebno za evidenciju porudžbine.",
         ],
       },
       {
@@ -211,22 +211,22 @@ export const me = {
           "autentifikaciju i održavanje korisničke sesije;",
           "obradu porudžbine i prikaz istorije porudžbina;",
           "pripremu i organizaciju dostave;",
-          "customer support i komunikaciju u vezi porudžbine;",
+          "korisničku podršku i komunikaciju u vezi porudžbine;",
           "sigurnost, validaciju plaćanja i sprečavanje zloupotrebe;",
           "održavanje i poboljšanje stabilnosti aplikacije.",
         ],
       },
       {
-        title: "4. Cookies i sesije",
+        title: "4. Kolačići i sesije",
         paragraphs: [
-          "Aplikacija koristi sesije i tehničke cookie mehanizme potrebne za prijavu, sigurnost i rad osnovnih funkcija. Ovi mehanizmi nijesu namijenjeni za prodaju ličnih podataka.",
+          "Aplikacija koristi sesije i tehničke mehanizme kolačića potrebne za prijavu, sigurnost i rad osnovnih funkcija. Ovi mehanizmi nijesu namijenjeni za prodaju ličnih podataka.",
         ],
       },
       {
-        title: "5. Third-party servisi",
+        title: "5. Usluge trećih strana",
         paragraphs: [
-          "NewParts može koristiti Pi Network / Pi Platform za Pi Sign-In i Pi plaćanja, Render za hosting aplikacije i MongoDB hosting/database infrastrukturu za čuvanje podataka aplikacije.",
-          "Cloudinary ili sličan media provider može biti korišćen za product media u budućoj fazi. Ne tvrdimo da trenutno obrađuje customer PII kroz NewParts osim ako takva integracija bude posebno uvedena.",
+          "NewParts može koristiti Pi Network / Pi Platform za Pi Sign-In i Pi plaćanja, Render za hosting aplikacije i MongoDB hosting i infrastrukturu baze podataka za čuvanje podataka aplikacije.",
+          "Cloudinary ili sličan pružalac medijskih usluga može biti korišćen za medijski sadržaj proizvoda u budućoj fazi. Ne tvrdimo da trenutno obrađuje lične podatke kupaca kroz NewParts osim ako takva integracija bude posebno uvedena.",
         ],
       },
       {
@@ -244,7 +244,7 @@ export const me = {
       {
         title: "8. Sigurnost podataka",
         paragraphs: [
-          "Nastojimo da koristimo razumne tehničke i organizacione mjere za zaštitu podataka, uključujući server-side validaciju plaćanja, autorizaciju za korisničke podatke i ograničen pristup internim sistemima. Nijedan online sistem nije potpuno bez rizika.",
+          "Nastojimo da koristimo razumne tehničke i organizacione mjere za zaštitu podataka, uključujući serversku validaciju plaćanja, autorizaciju za korisničke podatke i ograničen pristup internim sistemima. Nijedan internet sistem nije potpuno bez rizika.",
         ],
       },
       {
@@ -262,7 +262,7 @@ export const me = {
       {
         title: "11. Kontakt",
         paragraphs: [
-          "Za pitanja o privatnosti ili zahtjeve u vezi podataka kontaktirajte nas na: privacy@newparts.example. Ovaj kontakt je placeholder i biće zamijenjen zvaničnim kontaktom prije šire produkcione upotrebe.",
+          "Za pitanja o privatnosti ili zahtjeve u vezi podataka kontaktirajte nas na: privacy@newparts.example. Ovaj kontakt je privremen i biće zamijenjen zvaničnim kontaktom prije šire produkcione upotrebe.",
         ],
       },
     ],
@@ -294,56 +294,56 @@ export const me = {
       {
         title: "4. Proizvodi, dostupnost i cijene",
         paragraphs: [
-          "Cijene su prikazane u Pi kada je Pi checkout dostupan. Dostupnost, stock i cijena proizvoda mogu se promijeniti prije potvrde kupovine. Porudžbina nije konačna dok plaćanje i order processing ne budu potvrđeni kroz aplikaciju.",
-          "Slike, opisi, specifikacije i fitment podaci su informativni i mogu sadržati greške ili biti nepotpuni.",
+          "Cijene su prikazane u Pi kada je Pi plaćanje dostupno. Dostupnost, zaliha i cijena proizvoda mogu se promijeniti prije potvrde kupovine. Porudžbina nije konačna dok plaćanje i obrada porudžbine ne budu potvrđeni kroz aplikaciju.",
+          "Slike, opisi, specifikacije i podaci o kompatibilnosti su informativni i mogu sadržati greške ili biti nepotpuni.",
         ],
       },
       {
         title: "5. Kompatibilnost djelova",
         paragraphs: [
-          "Vehicle selector i fitment informacije služe kao pomoć pri kupovini. Korisnik je odgovoran da prije kupovine provjeri da li dio odgovara njegovom vozilu, uključujući godinu, marku, model, podmodel, motor, opremu i druge relevantne karakteristike.",
+          "Izbor vozila i informacije o kompatibilnosti služe kao pomoć pri kupovini. Korisnik je odgovoran da prije kupovine provjeri da li dio odgovara njegovom vozilu, uključujući godinu, marku, model, podmodel, motor, opremu i druge relevantne karakteristike.",
         ],
       },
       {
         title: "6. Porudžbine i potvrda",
         paragraphs: [
-          "Nakon uspješnog checkout-a možemo prikazati osnovne podatke o porudžbini, status i istoriju porudžbina. Zadržavamo pravo da odbijemo ili poništimo porudžbinu ako validacija plaćanja, stock ili sigurnosne provjere ne prođu.",
+          "Nakon uspješnog plaćanja možemo prikazati osnovne podatke o porudžbini, status i istoriju porudžbina. Zadržavamo pravo da odbijemo ili poništimo porudžbinu ako validacija plaćanja, zaliha ili sigurnosne provjere ne prođu.",
         ],
       },
       {
         title: "7. Dostava",
         paragraphs: [
-          "Korisnik je odgovoran da unese tačnu adresu dostave. Dostava, vrijeme isporuke i eventualni troškovi dostave mogu zavisiti od lokacije, dostupnosti proizvoda i operativnih mogućnosti. Cijena dostave nije dio trenutnog product subtotal-a osim ako je posebno prikazana u checkout-u.",
+          "Korisnik je odgovoran da unese tačnu adresu dostave. Dostava, vrijeme isporuke i eventualni troškovi dostave mogu zavisiti od lokacije, dostupnosti proizvoda i operativnih mogućnosti. Cijena dostave nije dio trenutnog međuzbira proizvoda osim ako je posebno prikazana pri plaćanju.",
         ],
       },
       {
-        title: "8. Returns i refunds",
+        title: "8. Povrati i refundacije",
         paragraphs: [
-          "Povrati i refundacije su subject to applicable return/refund policy. Ako posebna return policy još nije objavljena u aplikaciji, uslovi povrata biće definisani kroz customer support ili posebnu politiku prije šire produkcione upotrebe. Ne obećavamo automatski refund sistem dok takva funkcionalnost nije posebno objavljena.",
+          "Povrati i refundacije zavise od primjenjive politike povrata i refundacije. Ako posebna politika povrata još nije objavljena u aplikaciji, uslovi povrata biće definisani kroz korisničku podršku ili posebnu politiku prije šire produkcione upotrebe. Ne obećavamo automatski sistem refundacije dok takva funkcionalnost nije posebno objavljena.",
         ],
       },
       {
         title: "9. Zabranjena zloupotreba",
         paragraphs: [
-          "Zabranjeno je pokušavati neovlašćen pristup, mijenjati payment metadata, zloupotrebljavati Pi identitet, ometati rad aplikacije, unositi lažne podatke ili koristiti aplikaciju na način koji može štetiti drugim korisnicima ili sistemu.",
+          "Zabranjeno je pokušavati neovlašćen pristup, mijenjati metapodatke plaćanja, zloupotrebljavati Pi identitet, ometati rad aplikacije, unositi lažne podatke ili koristiti aplikaciju na način koji može štetiti drugim korisnicima ili sistemu.",
         ],
       },
       {
-        title: "10. Intellectual property",
+        title: "10. Intelektualna svojina",
         paragraphs: [
           "NewParts naziv, UI, tekstovi, organizacija kataloga i drugi elementi aplikacije mogu biti zaštićeni pravima intelektualne svojine. Nazivi proizvođača, brendovi i oznake djelova mogu pripadati njihovim vlasnicima i koriste se radi identifikacije proizvoda.",
         ],
       },
       {
-        title: "11. Third-party services",
+        title: "11. Usluge trećih strana",
         paragraphs: [
-          "Aplikacija se oslanja na third-party servise kao što su Pi Network / Pi Platform, hosting infrastruktura i database infrastruktura. Njihovi uslovi i politike mogu se primjenjivati na djelove usluge koje oni pružaju.",
+          "Aplikacija se oslanja na usluge trećih strana kao što su Pi Network / Pi Platform, hosting infrastruktura i infrastruktura baze podataka. Njihovi uslovi i politike mogu se primjenjivati na djelove usluge koje oni pružaju.",
         ],
       },
       {
         title: "12. Ograničenje odgovornosti",
         paragraphs: [
-          "U mjeri dozvoljenoj primjenjivim pravilima, NewParts nije odgovoran za indirektne, slučajne ili posljedične gubitke koji nastanu zbog korišćenja aplikacije, nedostupnosti servisa, netačnih fitment informacija ili third-party servisa. Ovo ne ograničava prava koja ne mogu biti ograničena zakonom.",
+          "U mjeri dozvoljenoj primjenjivim pravilima, NewParts nije odgovoran za indirektne, slučajne ili posljedične gubitke koji nastanu zbog korišćenja aplikacije, nedostupnosti servisa, netačnih informacija o kompatibilnosti ili usluga trećih strana. Ovo ne ograničava prava koja ne mogu biti ograničena zakonom.",
         ],
       },
       {
@@ -359,7 +359,7 @@ export const me = {
         ],
       },
       {
-        title: "15. Governing law",
+        title: "15. Primjenjivo pravo",
         paragraphs: [
           "Primjenjivo pravo i nadležnost biće definisani u skladu sa poslovnim sjedištem i relevantnim pravilima prije šire produkcione upotrebe. Do tada, ove uslove treba tumačiti na razuman i neutralan način.",
         ],
@@ -367,7 +367,7 @@ export const me = {
       {
         title: "16. Kontakt",
         paragraphs: [
-          "Za pitanja o ovim uslovima kontaktirajte nas na: support@newparts.example. Ovaj kontakt je placeholder i biće zamijenjen zvaničnim kontaktom.",
+          "Za pitanja o ovim uslovima kontaktirajte nas na: support@newparts.example. Ovaj kontakt je privremen i biće zamijenjen zvaničnim kontaktom.",
         ],
       },
     ],

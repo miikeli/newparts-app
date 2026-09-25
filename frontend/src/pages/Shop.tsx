@@ -14,6 +14,7 @@ import {
   getLocalizedCategoryName,
   getLocalizedProductCategory,
   getLocalizedProductDescription,
+  getLocalizedProductImages,
   getLocalizedProductName,
   products,
   vehicleOptions,
@@ -354,6 +355,7 @@ const Shop = () => {
             <div className="products-grid">
               {visibleProducts.map((product) => {
                 const localizedName = getLocalizedProductName(product, language);
+                const localizedImages = getLocalizedProductImages(product, language);
 
                 return (
                   <ProductCard
@@ -363,7 +365,7 @@ const Shop = () => {
                     category={getLocalizedProductCategory(product, language)}
                     description={getLocalizedProductDescription(product, language)}
                     price={product.price}
-                    pictureURL={product.images[0]}
+                    pictureURL={localizedImages[0]}
                     onOpenDetail={() =>
                       navigate(`/product/${product.id}`, {
                         state: { activeVehicle },

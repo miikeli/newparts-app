@@ -3,9 +3,15 @@ import { Link, useLocation, useParams } from "react-router-dom";
 import { useCart } from "../context/CartContext";
 import {
   findProductById,
+  getLocalizedFitmentNotes,
   getLocalizedProductCategory,
   getLocalizedProductDescription,
+  getLocalizedProductImages,
   getLocalizedProductName,
+  getLocalizedProductReturnPolicy,
+  getLocalizedProductShippingInfo,
+  getLocalizedProductSpecifications,
+  getLocalizedProductWarranty,
   type VehicleSelection,
 } from "../data/products";
 import { useI18n } from "../i18n";
@@ -69,6 +75,21 @@ const ProductDetailPage = () => {
     : "";
   const localizedCategory = product
     ? getLocalizedProductCategory(product, language)
+    : "";
+  const localizedImages = product
+    ? getLocalizedProductImages(product, language)
+    : [];
+  const localizedSpecifications = product
+    ? getLocalizedProductSpecifications(product, language)
+    : [];
+  const localizedShippingInfo = product
+    ? getLocalizedProductShippingInfo(product, language)
+    : "";
+  const localizedWarranty = product
+    ? getLocalizedProductWarranty(product, language)
+    : "";
+  const localizedReturnPolicy = product
+    ? getLocalizedProductReturnPolicy(product, language)
     : "";
 
   const stockStatus = useMemo(
@@ -139,7 +160,7 @@ const ProductDetailPage = () => {
         <section className="product-detail-grid">
           <div className="product-gallery">
             <div className="product-thumbnails">
-              {product.images.map((image, index) => (
+              {localizedImages.map((image, index) => (
                 <button
                   key={image}
                   className={selectedImageIndex === index ? "active is-selected" : ""}
@@ -152,7 +173,7 @@ const ProductDetailPage = () => {
             </div>
 
             <div className="product-main-image">
-              <img src={product.images[selectedImageIndex]} alt={localizedName} />
+              <img src={localizedImages[selectedImageIndex]} alt={localizedName} />
             </div>
           </div>
 
@@ -282,7 +303,7 @@ const ProductDetailPage = () => {
 
             {activeTab === "specification" && (
               <dl className="spec-list">
-                {product.specifications.map((spec) => (
+                {localizedSpecifications.map((spec) => (
                   <div key={spec.label}>
                     <dt>{spec.label}</dt>
                     <dd>{spec.value}</dd>
@@ -318,7 +339,9 @@ const ProductDetailPage = () => {
                           <td data-label={t("product.fitmentMake")}>{fitment.make}</td>
                           <td data-label={t("product.fitmentModel")}>{fitment.model}</td>
                           <td data-label={t("product.fitmentSubmodel")}>{fitment.submodel}</td>
-                          <td data-label={t("product.fitmentNotes")}>{fitment.notes}</td>
+                          <td data-label={t("product.fitmentNotes")}>
+                            {getLocalizedFitmentNotes(fitment, language)}
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -326,9 +349,9 @@ const ProductDetailPage = () => {
                 </div>
               ))}
 
-            {activeTab === "shipping" && <p>{product.shippingInfo}</p>}
-            {activeTab === "warranty" && <p>{product.warranty}</p>}
-            {activeTab === "returns" && <p>{product.returnPolicy}</p>}
+            {activeTab === "shipping" && <p>{localizedShippingInfo}</p>}
+            {activeTab === "warranty" && <p>{localizedWarranty}</p>}
+            {activeTab === "returns" && <p>{localizedReturnPolicy}</p>}
           </div>
         </section>
       </div>

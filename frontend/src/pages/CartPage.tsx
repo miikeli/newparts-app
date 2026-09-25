@@ -2,7 +2,10 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useOutletContext } from "react-router-dom";
 import type { StoreOutletContext } from "../components/StoreShell";
 import { useCart } from "../context/CartContext";
-import { getLocalizedProductName } from "../data/products";
+import {
+  getLocalizedProductImages,
+  getLocalizedProductName,
+} from "../data/products";
 import { usePayments } from "../hooks/usePayments";
 import { useI18n } from "../i18n";
 import { axiosClient } from "../lib/axiosClient";
@@ -235,7 +238,7 @@ const CartPage = () => {
                     to={`/product/${item.productId}`}
                   >
                     <img
-                      src={item.product.images[0]}
+                      src={getLocalizedProductImages(item.product, language)[0]}
                       alt={getLocalizedProductName(item.product, language)}
                     />
                   </Link>
