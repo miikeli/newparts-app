@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useOutletContext, useParams } from "react-router-dom";
 import type { StoreOutletContext } from "../components/StoreShell";
+import { findProductById, getLocalizedProductName } from "../data/products";
 import { useI18n, type Language } from "../i18n";
 import { axiosClient } from "../lib/axiosClient";
 import { getPiAuthConfig } from "../lib/piAuth";
@@ -151,30 +152,37 @@ const OrderDetailPage = () => {
                   <p>{t("order.oldFormatHint")}</p>
                 </div>
               ) : (
-                order.items.map((item, index) => (
-                  <article className="order-detail-item" key={`${item.productId}-${index}`}>
-                    {item.image && (
-                      <img src={item.image} alt={item.name ?? t("order.productFallback")} />
-                    )}
-                    <div>
-                      <strong>{item.name ?? t("order.productFallback")}</strong>
-                      {item.brand && <span>{item.brand}</span>}
-                      <small>SKU: {item.sku ?? "N/A"} | MPN: {item.mpn ?? "N/A"}</small>
-                    </div>
-                    <div>
-                      <span>{t("common.quantity")}</span>
-                      <strong>{item.quantity ?? 0}</strong>
-                    </div>
-                    <div>
-                      <span>{t("common.price")}</span>
-                      <strong>{formatPi(item.unitPrice)}</strong>
-                    </div>
-                    <div>
-                      <span>{t("common.total")}</span>
-                      <strong>{formatPi(item.lineTotal)}</strong>
-                    </div>
-                  </article>
-                ))
+                order.items.map((item, index) => {
+                  const catalogProduct = item.productId
+                    ? findProductById(item.productId)
+                    : undefined;
+                  const itemName = catalogProduct
+                    ? getLocalizedProductName(catalogProduct, language)
+                    : item.name ?? t("order.productFallback");
+
+                  return (
+                    <article className="order-detail-item" key={`${item.productId}-${index}`}>
+                      {item.image && <img src={item.image} alt={itemName} />}
+                      <div>
+                        <strong>{itemName}</strong>
+                        {item.brand && <span>{item.brand}</span>}
+                        <small>SKU: {item.sku ?? "N/A"} | MPN: {item.mpn ?? "N/A"}</small>
+                      </div>
+                      <div>
+                        <span>{t("common.quantity")}</span>
+                        <strong>{item.quantity ?? 0}</strong>
+                      </div>
+                      <div>
+                        <span>{t("common.price")}</span>
+                        <strong>{formatPi(item.unitPrice)}</strong>
+                      </div>
+                      <div>
+                        <span>{t("common.total")}</span>
+                        <strong>{formatPi(item.lineTotal)}</strong>
+                      </div>
+                    </article>
+                  );
+                })
               )}
             </div>
 

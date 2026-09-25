@@ -6,6 +6,8 @@ import { type ProductDocument } from "./products";
 export type CategoryDocument = {
   id: string;
   name: string;
+  nameMe?: string;
+  nameEn?: string;
   slug: string;
   parentId?: string | null;
   active: boolean;
@@ -59,6 +61,59 @@ const categoryLegacyMap: { [name: string]: string } = {
   Hlađenje: "cooling",
   Elektrika: "electrical",
   Klima: "climate",
+};
+
+const categoryLocalizedNames: {
+  [id: string]: { nameMe: string; nameEn: string };
+} = {
+  "brake-system": {
+    nameMe: "Kočioni sistem",
+    nameEn: "Brake System",
+  },
+  "brake-pads": {
+    nameMe: "Kočione pločice",
+    nameEn: "Brake Pads",
+  },
+  "brake-rotors": {
+    nameMe: "Kočioni diskovi",
+    nameEn: "Brake Rotors",
+  },
+  engine: {
+    nameMe: "Motor",
+    nameEn: "Engine",
+  },
+  filters: {
+    nameMe: "Filteri",
+    nameEn: "Filters",
+  },
+  ignition: {
+    nameMe: "Paljenje",
+    nameEn: "Ignition",
+  },
+  suspension: {
+    nameMe: "Ovjes",
+    nameEn: "Suspension",
+  },
+  electrical: {
+    nameMe: "Elektrika",
+    nameEn: "Electrical",
+  },
+  steering: {
+    nameMe: "Upravljanje",
+    nameEn: "Steering",
+  },
+  fuel: {
+    nameMe: "Gorivo",
+    nameEn: "Fuel",
+  },
+  cooling: {
+    nameMe: "Hlađenje",
+    nameEn: "Cooling",
+  },
+  climate: {
+    nameMe: "Klima",
+    nameEn: "Climate Control",
+  },
 };
 
 const readString = (value: unknown) =>
@@ -116,6 +171,12 @@ export const getCategoryIdForLegacyName = (name: string) =>
 export const getBrandIdForLegacyName = (name: string) =>
   createEntityId("brand", slugify(name));
 
+const getCategoryLocalizedNames = (id: string, fallbackName: string) =>
+  categoryLocalizedNames[id] ?? {
+    nameMe: fallbackName,
+    nameEn: fallbackName,
+  };
+
 export const validateCategoryInput = (
   input: unknown,
   existingId?: string,
@@ -126,7 +187,10 @@ export const validateCategoryInput = (
       : {};
   const errors: { [field: string]: string } = {};
   const name = readString(source.name);
-  const slug = slugify(readString(source.slug) || name);
+  const nameMe = readString(source.nameMe);
+  const nameEn = readString(source.nameEn);
+  const canonicalName = name || nameEn || nameMe;
+  const slug = slugify(readString(source.slug) || canonicalName);
   const parentId = readString(source.parentId) || null;
   const id = existingId || readString(source.id) || createEntityId("cat", slug);
   const active = readOptionalBoolean(source.active, true);
@@ -134,7 +198,7 @@ export const validateCategoryInput = (
   const description = readString(source.description);
   const image = readString(source.image);
 
-  if (!name) {
+  if (!canonicalName) {
     errors.name = "Required";
   }
 
@@ -149,7 +213,9 @@ export const validateCategoryInput = (
   }
 
   pushLengthError(errors, "id", id, maxTextLengths.id);
-  pushLengthError(errors, "name", name, maxTextLengths.name);
+  pushLengthError(errors, "name", canonicalName, maxTextLengths.name);
+  pushLengthError(errors, "nameMe", nameMe, maxTextLengths.name);
+  pushLengthError(errors, "nameEn", nameEn, maxTextLengths.name);
   pushLengthError(errors, "slug", slug, maxTextLengths.slug);
   pushLengthError(errors, "description", description, maxTextLengths.description);
   pushLengthError(errors, "image", image, maxTextLengths.image);
@@ -162,7 +228,9 @@ export const validateCategoryInput = (
     ok: true,
     value: {
       id,
-      name,
+      name: canonicalName,
+      nameMe: nameMe || canonicalName,
+      nameEn: nameEn || canonicalName,
       slug,
       parentId,
       active,
@@ -224,6 +292,8 @@ export const serializeCategory = (
 ) => ({
   id: category.id,
   name: category.name,
+  nameMe: category.nameMe ?? category.name,
+  nameEn: category.nameEn ?? category.name,
   slug: category.slug,
   parentId: category.parentId ?? null,
   parentName,
@@ -252,6 +322,8 @@ const defaultCategories: Omit<CategoryDocument, "createdAt" | "updatedAt">[] = [
   {
     id: "brake-system",
     name: "Brake System",
+    nameMe: "Kočioni sistem",
+    nameEn: "Brake System",
     slug: "brake-system",
     parentId: null,
     active: true,
@@ -261,6 +333,8 @@ const defaultCategories: Omit<CategoryDocument, "createdAt" | "updatedAt">[] = [
   {
     id: "brake-pads",
     name: "Brake Pads",
+    nameMe: "Kočione pločice",
+    nameEn: "Brake Pads",
     slug: "brake-pads",
     parentId: "brake-system",
     active: true,
@@ -270,6 +344,8 @@ const defaultCategories: Omit<CategoryDocument, "createdAt" | "updatedAt">[] = [
   {
     id: "brake-rotors",
     name: "Brake Rotors",
+    nameMe: "Kočioni diskovi",
+    nameEn: "Brake Rotors",
     slug: "brake-rotors",
     parentId: "brake-system",
     active: true,
@@ -279,6 +355,8 @@ const defaultCategories: Omit<CategoryDocument, "createdAt" | "updatedAt">[] = [
   {
     id: "engine",
     name: "Engine",
+    nameMe: "Motor",
+    nameEn: "Engine",
     slug: "engine",
     parentId: null,
     active: true,
@@ -288,6 +366,8 @@ const defaultCategories: Omit<CategoryDocument, "createdAt" | "updatedAt">[] = [
   {
     id: "filters",
     name: "Filters",
+    nameMe: "Filteri",
+    nameEn: "Filters",
     slug: "filters",
     parentId: "engine",
     active: true,
@@ -297,6 +377,8 @@ const defaultCategories: Omit<CategoryDocument, "createdAt" | "updatedAt">[] = [
   {
     id: "ignition",
     name: "Ignition",
+    nameMe: "Paljenje",
+    nameEn: "Ignition",
     slug: "ignition",
     parentId: "engine",
     active: true,
@@ -306,6 +388,8 @@ const defaultCategories: Omit<CategoryDocument, "createdAt" | "updatedAt">[] = [
   {
     id: "suspension",
     name: "Suspension",
+    nameMe: "Ovjes",
+    nameEn: "Suspension",
     slug: "suspension",
     parentId: null,
     active: true,
@@ -315,6 +399,8 @@ const defaultCategories: Omit<CategoryDocument, "createdAt" | "updatedAt">[] = [
   {
     id: "electrical",
     name: "Electrical",
+    nameMe: "Elektrika",
+    nameEn: "Electrical",
     slug: "electrical",
     parentId: null,
     active: true,
@@ -393,6 +479,24 @@ export const seedTaxonomyAndProductRelations = async (
 
   for (const category of defaultCategories) {
     await upsertCategory(categoryCollection, category, now);
+    await categoryCollection.updateOne(
+      {
+        id: category.id,
+        $or: [
+          { nameMe: { $exists: false } },
+          { nameMe: "" },
+          { nameEn: { $exists: false } },
+          { nameEn: "" },
+        ],
+      },
+      {
+        $set: {
+          nameMe: category.nameMe,
+          nameEn: category.nameEn,
+          updatedAt: now,
+        },
+      },
+    );
   }
 
   const productBrands = await productCollection.distinct("brand", {
@@ -431,13 +535,17 @@ export const seedTaxonomyAndProductRelations = async (
       id: knownCategoryId,
     } as Filter<CategoryDocument>);
 
+    const localized = getCategoryLocalizedNames(knownCategoryId, name);
+
     if (!existing) {
       await upsertCategory(
         categoryCollection,
         {
           id: knownCategoryId,
-          name,
-          slug: slugify(name),
+          name: localized.nameEn,
+          nameMe: localized.nameMe,
+          nameEn: localized.nameEn,
+          slug: slugify(localized.nameEn),
           parentId: null,
           active: true,
           sortOrder: 100,
@@ -445,6 +553,17 @@ export const seedTaxonomyAndProductRelations = async (
           image: "",
         },
         now,
+      );
+    } else if (!existing.nameMe || !existing.nameEn) {
+      await categoryCollection.updateOne(
+        { id: knownCategoryId },
+        {
+          $set: {
+            nameMe: existing.nameMe || localized.nameMe,
+            nameEn: existing.nameEn || localized.nameEn,
+            updatedAt: now,
+          },
+        },
       );
     }
   }

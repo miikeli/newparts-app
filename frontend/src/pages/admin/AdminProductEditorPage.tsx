@@ -18,6 +18,8 @@ type EditorTab = "info" | "images" | "inventory" | "specifications" | "fitment";
 type ProductForm = {
   id?: string;
   name: string;
+  nameMe: string;
+  nameEn: string;
   sku: string;
   mpn: string;
   brandId: string;
@@ -26,6 +28,8 @@ type ProductForm = {
   stock: string;
   active: boolean;
   description: string;
+  descriptionMe: string;
+  descriptionEn: string;
   images: string[];
   specifications: AdminProductSpecification[];
   fitments: AdminProductFitment[];
@@ -33,6 +37,8 @@ type ProductForm = {
 
 const emptyProductForm: ProductForm = {
   name: "",
+  nameMe: "",
+  nameEn: "",
   sku: "",
   mpn: "",
   brandId: "",
@@ -41,6 +47,8 @@ const emptyProductForm: ProductForm = {
   stock: "0",
   active: true,
   description: "",
+  descriptionMe: "",
+  descriptionEn: "",
   images: [""],
   specifications: [{ key: "", value: "" }],
   fitments: [
@@ -65,6 +73,8 @@ const tabs: { id: EditorTab; label: string }[] = [
 const productToForm = (product: AdminProduct): ProductForm => ({
   id: product.id,
   name: product.name,
+  nameMe: product.nameMe ?? product.name,
+  nameEn: product.nameEn ?? product.name,
   sku: product.sku,
   mpn: product.mpn,
   brandId: product.brandId,
@@ -73,6 +83,8 @@ const productToForm = (product: AdminProduct): ProductForm => ({
   stock: String(product.stock),
   active: product.active,
   description: product.description,
+  descriptionMe: product.descriptionMe ?? product.description,
+  descriptionEn: product.descriptionEn ?? product.description,
   images: product.images.length > 0 ? product.images : [""],
   specifications:
     product.specifications.length > 0
@@ -86,7 +98,9 @@ const productToForm = (product: AdminProduct): ProductForm => ({
 
 const cleanFormPayload = (form: ProductForm) => ({
   id: form.id,
-  name: form.name,
+  name: form.nameMe || form.nameEn || form.name,
+  nameMe: form.nameMe,
+  nameEn: form.nameEn,
   sku: form.sku,
   mpn: form.mpn,
   brandId: form.brandId,
@@ -94,7 +108,9 @@ const cleanFormPayload = (form: ProductForm) => ({
   pricePi: Number(form.pricePi),
   stock: Number(form.stock),
   active: form.active,
-  description: form.description,
+  description: form.descriptionMe || form.descriptionEn || form.description,
+  descriptionMe: form.descriptionMe,
+  descriptionEn: form.descriptionEn,
   images: form.images.map((image) => image.trim()).filter(Boolean),
   specifications: form.specifications
     .map((spec) => ({ key: spec.key.trim(), value: spec.value.trim() }))
@@ -353,10 +369,17 @@ const AdminProductEditorPage = () => {
             {activeTab === "info" && (
               <div className="admin-editor-panel admin-form-grid">
                 <label>
-                  Product name
+                  Product name — Montenegrin
                   <input
-                    value={form.name}
-                    onChange={(event) => updateField("name", event.target.value)}
+                    value={form.nameMe}
+                    onChange={(event) => updateField("nameMe", event.target.value)}
+                  />
+                </label>
+                <label>
+                  Product name — English
+                  <input
+                    value={form.nameEn}
+                    onChange={(event) => updateField("nameEn", event.target.value)}
                   />
                 </label>
                 <label>
@@ -420,11 +443,20 @@ const AdminProductEditorPage = () => {
                   />
                 </label>
                 <label className="admin-full-width">
-                  Description
+                  Description — Montenegrin
                   <textarea
-                    value={form.description}
+                    value={form.descriptionMe}
                     onChange={(event) =>
-                      updateField("description", event.target.value)
+                      updateField("descriptionMe", event.target.value)
+                    }
+                  />
+                </label>
+                <label className="admin-full-width">
+                  Description — English
+                  <textarea
+                    value={form.descriptionEn}
+                    onChange={(event) =>
+                      updateField("descriptionEn", event.target.value)
                     }
                   />
                 </label>

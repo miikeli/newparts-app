@@ -24,6 +24,8 @@ export type ProductFitment = {
 export type ProductDocument = {
   id: string;
   name: string;
+  nameMe?: string;
+  nameEn?: string;
   sku: string;
   mpn: string;
   brand: string;
@@ -34,6 +36,8 @@ export type ProductDocument = {
   stock: number;
   active: boolean;
   description: string;
+  descriptionMe?: string;
+  descriptionEn?: string;
   images: string[];
   specifications: ProductSpecification[];
   fitments: ProductFitment[];
@@ -216,6 +220,8 @@ export const validateProductInput = (
       : {};
   const errors: { [field: string]: string } = {};
   const name = readString(source.name);
+  const nameMe = readString(source.nameMe);
+  const nameEn = readString(source.nameEn);
   const sku = readString(source.sku);
   const mpn = readString(source.mpn);
   const brand = readString(source.brand);
@@ -223,15 +229,19 @@ export const validateProductInput = (
   const category = readString(source.category);
   const categoryId = readString(source.categoryId);
   const description = readString(source.description);
+  const descriptionMe = readString(source.descriptionMe);
+  const descriptionEn = readString(source.descriptionEn);
   const pricePi = readFiniteNumber(source.pricePi);
   const stock = readFiniteNumber(source.stock);
   const requestedId = readString(source.id);
-  const id = (existingId ?? requestedId) || createProductId(name, sku);
+  const canonicalName = name || nameMe || nameEn;
+  const canonicalDescription = description || descriptionMe || descriptionEn;
+  const id = (existingId ?? requestedId) || createProductId(canonicalName, sku);
   const images = readStringArray(source.images, errors);
   const specifications = readSpecifications(source.specifications, errors);
   const fitments = readFitments(source.fitments, errors);
 
-  if (!name) {
+  if (!canonicalName) {
     errors.name = "Required";
   }
 
@@ -273,14 +283,18 @@ export const validateProductInput = (
   }
 
   pushLengthError(errors, "id", id, maxTextLengths.id);
-  pushLengthError(errors, "name", name, maxTextLengths.name);
+  pushLengthError(errors, "name", canonicalName, maxTextLengths.name);
+  pushLengthError(errors, "nameMe", nameMe, maxTextLengths.name);
+  pushLengthError(errors, "nameEn", nameEn, maxTextLengths.name);
   pushLengthError(errors, "sku", sku, maxTextLengths.sku);
   pushLengthError(errors, "mpn", mpn, maxTextLengths.mpn);
   pushLengthError(errors, "brand", brand, maxTextLengths.brand);
   pushLengthError(errors, "brandId", brandId, maxTextLengths.id);
   pushLengthError(errors, "category", category, maxTextLengths.category);
   pushLengthError(errors, "categoryId", categoryId, maxTextLengths.id);
-  pushLengthError(errors, "description", description, maxTextLengths.description);
+  pushLengthError(errors, "description", canonicalDescription, maxTextLengths.description);
+  pushLengthError(errors, "descriptionMe", descriptionMe, maxTextLengths.description);
+  pushLengthError(errors, "descriptionEn", descriptionEn, maxTextLengths.description);
 
   images.forEach((image, index) =>
     pushLengthError(errors, `images.${index}`, image, maxTextLengths.image),
@@ -310,7 +324,9 @@ export const validateProductInput = (
     ok: true,
     value: {
       id,
-      name,
+      name: canonicalName,
+      nameMe: nameMe || canonicalName,
+      nameEn: nameEn || canonicalName,
       sku,
       mpn,
       brand: refs?.brand?.name ?? brand,
@@ -320,7 +336,9 @@ export const validateProductInput = (
       pricePi: Number((pricePi as number).toFixed(7)),
       stock: stock as number,
       active: readOptionalBoolean(source.active, true),
-      description,
+      description: canonicalDescription,
+      descriptionMe: descriptionMe || canonicalDescription,
+      descriptionEn: descriptionEn || canonicalDescription,
       images,
       specifications,
       fitments,
@@ -332,6 +350,8 @@ const catalogToProductDocument = (now: Date): ProductDocument[] =>
   catalogProducts.map((product) => ({
     id: product.id,
     name: product.name,
+    nameMe: product.nameMe,
+    nameEn: product.nameEn,
     sku: product.sku,
     mpn: product.mpn,
     brand: product.brand,
@@ -342,6 +362,8 @@ const catalogToProductDocument = (now: Date): ProductDocument[] =>
     stock: product.stock,
     active: product.active,
     description: product.description,
+    descriptionMe: product.descriptionMe,
+    descriptionEn: product.descriptionEn,
     images: product.images,
     specifications: product.specifications,
     fitments: product.fitments,
@@ -361,6 +383,31 @@ export const seedProductsCollection = async (
       { $setOnInsert: product },
       { upsert: true },
     );
+
+    await productCollection.updateOne(
+      {
+        id: product.id,
+        $or: [
+          { nameMe: { $exists: false } },
+          { nameMe: "" },
+          { nameEn: { $exists: false } },
+          { nameEn: "" },
+          { descriptionMe: { $exists: false } },
+          { descriptionMe: "" },
+          { descriptionEn: { $exists: false } },
+          { descriptionEn: "" },
+        ],
+      },
+      {
+        $set: {
+          nameMe: product.nameMe,
+          nameEn: product.nameEn,
+          descriptionMe: product.descriptionMe,
+          descriptionEn: product.descriptionEn,
+          updatedAt: now,
+        },
+      },
+    );
   }
 };
 
@@ -373,6 +420,8 @@ export const serializeProduct = (
 ) => ({
   id: product.id,
   name: product.name,
+  nameMe: product.nameMe ?? product.name,
+  nameEn: product.nameEn ?? product.name,
   sku: product.sku,
   mpn: product.mpn,
   brand: refs?.brand?.name ?? product.brand,
@@ -385,6 +434,8 @@ export const serializeProduct = (
   stock: product.stock,
   active: product.active,
   description: product.description,
+  descriptionMe: product.descriptionMe ?? product.description,
+  descriptionEn: product.descriptionEn ?? product.description,
   images: product.images,
   specifications: product.specifications,
   fitments: product.fitments,

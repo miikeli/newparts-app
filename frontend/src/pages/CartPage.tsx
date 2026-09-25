@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useOutletContext } from "react-router-dom";
 import type { StoreOutletContext } from "../components/StoreShell";
 import { useCart } from "../context/CartContext";
+import { getLocalizedProductName } from "../data/products";
 import { usePayments } from "../hooks/usePayments";
 import { useI18n } from "../i18n";
 import { axiosClient } from "../lib/axiosClient";
@@ -29,7 +30,7 @@ type AddressesResponse = {
 };
 
 const CartPage = () => {
-  const { t } = useI18n();
+  const { language, t } = useI18n();
   const tRef = useRef(t);
   const {
     items,
@@ -136,7 +137,7 @@ const CartPage = () => {
       total: subtotal,
       items: items.map((item) => ({
         productId: item.productId,
-        name: item.product.name,
+        name: getLocalizedProductName(item.product, language),
         quantity: item.quantity,
         lineSubtotal: item.lineSubtotal,
       })),
@@ -233,12 +234,15 @@ const CartPage = () => {
                     className="cart-item-image"
                     to={`/product/${item.productId}`}
                   >
-                    <img src={item.product.images[0]} alt={item.product.name} />
+                    <img
+                      src={item.product.images[0]}
+                      alt={getLocalizedProductName(item.product, language)}
+                    />
                   </Link>
 
                   <div className="cart-item-info">
                     <Link to={`/product/${item.productId}`}>
-                      {item.product.name}
+                      {getLocalizedProductName(item.product, language)}
                     </Link>
                     <span>{item.product.brand}</span>
                     <small>SKU: {item.product.sku}</small>

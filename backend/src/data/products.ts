@@ -14,6 +14,8 @@ export type VehicleFitment = {
 export type CatalogProduct = {
   id: string;
   name: string;
+  nameMe: string;
+  nameEn: string;
   brand: string;
   sku: string;
   mpn: string;
@@ -22,6 +24,8 @@ export type CatalogProduct = {
   stock: number;
   active: boolean;
   description: string;
+  descriptionMe: string;
+  descriptionEn: string;
   images: string[];
   image: string;
   specifications: ProductSpecification[];
@@ -66,6 +70,8 @@ export const catalogProducts: CatalogProduct[] = [
   {
     id: "brake_pads_1",
     name: "Prednje kočione pločice",
+    nameMe: "Prednje kočione pločice",
+    nameEn: "Front Brake Pads",
     brand: "Brembo",
     sku: "NP-BRK-1001",
     mpn: "P85075N",
@@ -74,6 +80,8 @@ export const catalogProducts: CatalogProduct[] = [
     stock: 18,
     active: true,
     description: "Set prednjih pločica za VW Golf 7, Audi A3 i Seat Leon.",
+    descriptionMe: "Set prednjih pločica za VW Golf 7, Audi A3 i Seat Leon.",
+    descriptionEn: "Front brake pad set for VW Golf 7, Audi A3 and Seat Leon.",
     images: [productImage("Brake+Pads")],
     image: productImage("Brake+Pads"),
     specifications: [
@@ -86,6 +94,8 @@ export const catalogProducts: CatalogProduct[] = [
   {
     id: "oil_filter_1",
     name: "Filter ulja",
+    nameMe: "Filter ulja",
+    nameEn: "Oil Filter",
     brand: "MANN-FILTER",
     sku: "NP-FLT-2040",
     mpn: "HU 719/7 X",
@@ -94,6 +104,8 @@ export const catalogProducts: CatalogProduct[] = [
     stock: 42,
     active: true,
     description: "Kvalitetni filter ulja za veliki broj benzinskih i dizel motora.",
+    descriptionMe: "Kvalitetni filter ulja za veliki broj benzinskih i dizel motora.",
+    descriptionEn: "High-quality oil filter for a wide range of petrol and diesel engines.",
     images: [productImage("Oil+Filter")],
     image: productImage("Oil+Filter"),
     specifications: [
@@ -106,6 +118,8 @@ export const catalogProducts: CatalogProduct[] = [
   {
     id: "air_filter_1",
     name: "Filter vazduha",
+    nameMe: "Filter vazduha",
+    nameEn: "Air Filter",
     brand: "Bosch",
     sku: "NP-FLT-3102",
     mpn: "F 026 400 462",
@@ -114,6 +128,8 @@ export const catalogProducts: CatalogProduct[] = [
     stock: 27,
     active: true,
     description: "Filter motora sa visokim stepenom filtracije i dugim vijekom trajanja.",
+    descriptionMe: "Filter motora sa visokim stepenom filtracije i dugim vijekom trajanja.",
+    descriptionEn: "Engine air filter with high filtration efficiency and long service life.",
     images: [productImage("Air+Filter")],
     image: productImage("Air+Filter"),
     specifications: [
@@ -126,6 +142,8 @@ export const catalogProducts: CatalogProduct[] = [
   {
     id: "spark_plugs_1",
     name: "Set svjećica",
+    nameMe: "Set svjećica",
+    nameEn: "Spark Plug Set",
     brand: "NGK",
     sku: "NP-IGN-4100",
     mpn: "IZFR6P7",
@@ -134,6 +152,8 @@ export const catalogProducts: CatalogProduct[] = [
     stock: 11,
     active: true,
     description: "Set od 4 svjećice za stabilno paljenje i optimalan rad motora.",
+    descriptionMe: "Set od 4 svjećice za stabilno paljenje i optimalan rad motora.",
+    descriptionEn: "Set of 4 spark plugs for stable ignition and optimal engine performance.",
     images: [productImage("Spark+Plugs")],
     image: productImage("Spark+Plugs"),
     specifications: [
@@ -146,6 +166,8 @@ export const catalogProducts: CatalogProduct[] = [
   {
     id: "shock_absorber_1",
     name: "Prednji amortizer",
+    nameMe: "Prednji amortizer",
+    nameEn: "Front Shock Absorber",
     brand: "Sachs",
     sku: "NP-SUS-5200",
     mpn: "315 087",
@@ -154,6 +176,8 @@ export const catalogProducts: CatalogProduct[] = [
     stock: 8,
     active: true,
     description: "Gasni amortizer za stabilnost, kontrolu i udobnu vožnju.",
+    descriptionMe: "Gasni amortizer za stabilnost, kontrolu i udobnu vožnju.",
+    descriptionEn: "Gas shock absorber for stability, control and comfortable driving.",
     images: [productImage("Shock+Absorber")],
     image: productImage("Shock+Absorber"),
     specifications: [
@@ -166,6 +190,8 @@ export const catalogProducts: CatalogProduct[] = [
   {
     id: "battery_1",
     name: "Akumulator 74Ah",
+    nameMe: "Akumulator 74Ah",
+    nameEn: "74Ah Battery",
     brand: "Varta",
     sku: "NP-ELC-7400",
     mpn: "E11 Blue Dynamic",
@@ -174,6 +200,8 @@ export const catalogProducts: CatalogProduct[] = [
     stock: 6,
     active: true,
     description: "12V akumulator za pouzdano pokretanje vozila u svim vremenskim uslovima.",
+    descriptionMe: "12V akumulator za pouzdano pokretanje vozila u svim vremenskim uslovima.",
+    descriptionEn: "12V battery for reliable vehicle starting in all weather conditions.",
     images: [productImage("Battery")],
     image: productImage("Battery"),
     specifications: [

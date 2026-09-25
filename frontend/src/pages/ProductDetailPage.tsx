@@ -3,6 +3,9 @@ import { Link, useLocation, useParams } from "react-router-dom";
 import { useCart } from "../context/CartContext";
 import {
   findProductById,
+  getLocalizedProductCategory,
+  getLocalizedProductDescription,
+  getLocalizedProductName,
   type VehicleSelection,
 } from "../data/products";
 import { useI18n } from "../i18n";
@@ -47,7 +50,7 @@ const getStockStatus = (stock: number, t: ReturnType<typeof useI18n>["t"]) => {
 };
 
 const ProductDetailPage = () => {
-  const { t } = useI18n();
+  const { language, t } = useI18n();
   const { id } = useParams();
   const location = useLocation();
   const product = id ? findProductById(id) : undefined;
@@ -58,6 +61,15 @@ const ProductDetailPage = () => {
   const [quantity, setQuantity] = useState(1);
   const [activeTab, setActiveTab] = useState<ProductTab>("description");
   const [addedMessage, setAddedMessage] = useState("");
+  const localizedName = product
+    ? getLocalizedProductName(product, language)
+    : "";
+  const localizedDescription = product
+    ? getLocalizedProductDescription(product, language)
+    : "";
+  const localizedCategory = product
+    ? getLocalizedProductCategory(product, language)
+    : "";
 
   const stockStatus = useMemo(
     () => getStockStatus(product?.stock ?? 0, t),
@@ -66,9 +78,9 @@ const ProductDetailPage = () => {
 
   useEffect(() => {
     document.title = product
-      ? `${product.name} | NewParts`
+      ? `${localizedName} | NewParts`
       : t("app.storeTitle");
-  }, [product, t]);
+  }, [localizedName, product, t]);
 
   const activeVehicleFits = useMemo(() => {
     if (!product || !activeVehicle) {
@@ -119,9 +131,9 @@ const ProductDetailPage = () => {
         <nav className="breadcrumbs" aria-label="Breadcrumb">
           <Link to="/">{t("product.home")}</Link>
           <span>/</span>
-          <Link to="/">{product.category}</Link>
+          <Link to="/">{localizedCategory}</Link>
           <span>/</span>
-          <strong>{product.name}</strong>
+          <strong>{localizedName}</strong>
         </nav>
 
         <section className="product-detail-grid">
@@ -140,7 +152,7 @@ const ProductDetailPage = () => {
             </div>
 
             <div className="product-main-image">
-              <img src={product.images[selectedImageIndex]} alt={product.name} />
+              <img src={product.images[selectedImageIndex]} alt={localizedName} />
             </div>
           </div>
 
@@ -154,7 +166,7 @@ const ProductDetailPage = () => {
               )}
             </div>
 
-            <h1>{product.name}</h1>
+            <h1>{localizedName}</h1>
 
             <div className="rating-row">
               <strong>4.8 / 5</strong>
@@ -167,7 +179,7 @@ const ProductDetailPage = () => {
               <span>MPN: {product.mpn}</span>
             </div>
 
-            <p className="product-detail-description">{product.description}</p>
+            <p className="product-detail-description">{localizedDescription}</p>
 
             <div className="vehicle-fitment-notice">
               <strong>{t("product.checkFitment")}</strong>
@@ -263,7 +275,7 @@ const ProductDetailPage = () => {
           <div className="tab-panel">
             {activeTab === "description" && (
               <div className="description-panel">
-                <p>{product.description}</p>
+                <p>{localizedDescription}</p>
                 <p>{t("product.demoNotice")}</p>
               </div>
             )}

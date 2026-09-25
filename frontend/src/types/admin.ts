@@ -19,6 +19,8 @@ export type AdminProductFitment = {
 export type AdminProduct = {
   id: string;
   name: string;
+  nameMe?: string;
+  nameEn?: string;
   sku: string;
   mpn: string;
   brand: string;
@@ -31,6 +33,8 @@ export type AdminProduct = {
   stock: number;
   active: boolean;
   description: string;
+  descriptionMe?: string;
+  descriptionEn?: string;
   images: string[];
   specifications: AdminProductSpecification[];
   fitments: AdminProductFitment[];
@@ -41,6 +45,8 @@ export type AdminProduct = {
 export type AdminCategory = {
   id: string;
   name: string;
+  nameMe?: string;
+  nameEn?: string;
   slug: string;
   parentId: string | null;
   parentName?: string;

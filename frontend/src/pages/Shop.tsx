@@ -11,6 +11,10 @@ import type { StoreOutletContext } from "../components/StoreShell";
 import {
   brands,
   categories,
+  getLocalizedCategoryName,
+  getLocalizedProductCategory,
+  getLocalizedProductDescription,
+  getLocalizedProductName,
   products,
   vehicleOptions,
   type Product,
@@ -33,7 +37,7 @@ const fitsVehicle = (product: Product, vehicle: VehicleSelection) =>
   );
 
 const Shop = () => {
-  const { t } = useI18n();
+  const { language, t } = useI18n();
   const navigate = useNavigate();
   const { isAuthenticated, requireAuth } = useOutletContext<StoreOutletContext>();
   const [searchTerm, setSearchTerm] = useState("");
@@ -143,13 +147,13 @@ const Shop = () => {
     return products.filter((product) => {
       const matchesSearch =
         normalizedSearch.length === 0 ||
-        product.name.toLowerCase().includes(normalizedSearch) ||
+        getLocalizedProductName(product, language).toLowerCase().includes(normalizedSearch) ||
         product.brand.toLowerCase().includes(normalizedSearch) ||
-        product.description.toLowerCase().includes(normalizedSearch) ||
-        product.category.toLowerCase().includes(normalizedSearch);
+        getLocalizedProductDescription(product, language).toLowerCase().includes(normalizedSearch) ||
+        getLocalizedProductCategory(product, language).toLowerCase().includes(normalizedSearch);
 
       const matchesCategory =
-        activeCategory === null || product.category === activeCategory;
+        activeCategory === null || product.categoryId === activeCategory;
 
       const matchesBrand =
         normalizedBrand === undefined ||
@@ -160,7 +164,7 @@ const Shop = () => {
 
       return matchesSearch && matchesCategory && matchesBrand && matchesVehicle;
     });
-  }, [activeBrand, activeCategory, activeVehicle, searchTerm]);
+  }, [activeBrand, activeCategory, activeVehicle, language, searchTerm]);
 
   const hasActiveFilters =
     searchTerm.trim().length > 0 ||
@@ -283,14 +287,14 @@ const Shop = () => {
             <div className="category-list">
               {categories.map((category) => (
                 <button
-                  key={category}
+                  key={category.id}
                   className={`category-tab ${
-                    activeCategory === category ? "active" : ""
+                    activeCategory === category.id ? "active" : ""
                   }`}
-                  onClick={() => setActiveCategory(category)}
-                  aria-pressed={activeCategory === category}
+                  onClick={() => setActiveCategory(category.id)}
+                  aria-pressed={activeCategory === category.id}
                 >
-                  {category}
+                  {getLocalizedCategoryName(category, language)}
                 </button>
               ))}
             </div>
@@ -348,42 +352,46 @@ const Shop = () => {
             </div>
 
             <div className="products-grid">
-              {visibleProducts.map((product) => (
-                <ProductCard
-                  key={product.id}
-                  name={product.name}
-                  brand={product.brand}
-                  category={product.category}
-                  description={product.description}
-                  price={product.price}
-                  pictureURL={product.images[0]}
-                  onOpenDetail={() =>
-                    navigate(`/product/${product.id}`, {
-                      state: { activeVehicle },
-                    })
-                  }
-                  onClickBuyWithPi={() =>
-                    orderProduct(
-                      `Order ${product.name}`,
-                      product.price,
-                      {
-                        productId: product.id,
-                      }
-                    )
-                  }
-                  onClickBuyWithIrra={() =>
-                    orderProduct(
-                      `Order ${product.name}`,
-                      product.price,
-                      {
-                        productId: product.id,
-                      },
-                      IRRA_TOKEN_CANONICAL
-                    )
-                  }
-                  disabled={isLoading}
-                />
-              ))}
+              {visibleProducts.map((product) => {
+                const localizedName = getLocalizedProductName(product, language);
+
+                return (
+                  <ProductCard
+                    key={product.id}
+                    name={localizedName}
+                    brand={product.brand}
+                    category={getLocalizedProductCategory(product, language)}
+                    description={getLocalizedProductDescription(product, language)}
+                    price={product.price}
+                    pictureURL={product.images[0]}
+                    onOpenDetail={() =>
+                      navigate(`/product/${product.id}`, {
+                        state: { activeVehicle },
+                      })
+                    }
+                    onClickBuyWithPi={() =>
+                      orderProduct(
+                        `Order ${localizedName}`,
+                        product.price,
+                        {
+                          productId: product.id,
+                        }
+                      )
+                    }
+                    onClickBuyWithIrra={() =>
+                      orderProduct(
+                        `Order ${localizedName}`,
+                        product.price,
+                        {
+                          productId: product.id,
+                        },
+                        IRRA_TOKEN_CANONICAL
+                      )
+                    }
+                    disabled={isLoading}
+                  />
+                );
+              })}
 
               {visibleProducts.length === 0 && (
                 <div className="empty-state">

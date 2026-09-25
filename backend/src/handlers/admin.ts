@@ -117,6 +117,10 @@ const buildProductFilter = (query: {
     filter.$or = [
       { sku: pattern },
       { name: pattern },
+      { nameMe: pattern },
+      { nameEn: pattern },
+      { descriptionMe: pattern },
+      { descriptionEn: pattern },
       { brand: pattern },
       { category: pattern },
       { mpn: pattern },
@@ -162,7 +166,12 @@ const buildEntityFilter = (query: {
 
   if (search) {
     const pattern = new RegExp(escapeRegex(search), "i");
-    filter.$or = [{ name: pattern }, { slug: pattern }];
+    filter.$or = [
+      { name: pattern },
+      { nameMe: pattern },
+      { nameEn: pattern },
+      { slug: pattern },
+    ];
   }
 
   if (status === "active") {

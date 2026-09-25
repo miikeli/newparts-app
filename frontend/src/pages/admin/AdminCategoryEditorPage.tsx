@@ -11,6 +11,8 @@ import type {
 type CategoryForm = {
   id?: string;
   name: string;
+  nameMe: string;
+  nameEn: string;
   slug: string;
   parentId: string;
   active: boolean;
@@ -21,6 +23,8 @@ type CategoryForm = {
 
 const emptyCategoryForm: CategoryForm = {
   name: "",
+  nameMe: "",
+  nameEn: "",
   slug: "",
   parentId: "",
   active: true,
@@ -32,6 +36,8 @@ const emptyCategoryForm: CategoryForm = {
 const categoryToForm = (category: AdminCategory): CategoryForm => ({
   id: category.id,
   name: category.name,
+  nameMe: category.nameMe ?? category.name,
+  nameEn: category.nameEn ?? category.name,
   slug: category.slug,
   parentId: category.parentId ?? "",
   active: category.active,
@@ -147,7 +153,9 @@ const AdminCategoryEditorPage = () => {
     try {
       const payload = {
         id: form.id,
-        name: form.name,
+        name: form.nameEn || form.nameMe || form.name,
+        nameMe: form.nameMe,
+        nameEn: form.nameEn,
         slug: form.slug,
         parentId: form.parentId || null,
         active: form.active,
@@ -210,10 +218,17 @@ const AdminCategoryEditorPage = () => {
           <>
             <div className="admin-editor-panel admin-form-grid">
               <label>
-                Name
+                Category Name — Montenegrin
                 <input
-                  value={form.name}
-                  onChange={(event) => updateField("name", event.target.value)}
+                  value={form.nameMe}
+                  onChange={(event) => updateField("nameMe", event.target.value)}
+                />
+              </label>
+              <label>
+                Category Name — English
+                <input
+                  value={form.nameEn}
+                  onChange={(event) => updateField("nameEn", event.target.value)}
                 />
               </label>
               <label>
