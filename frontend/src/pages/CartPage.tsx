@@ -5,7 +5,7 @@ import { useCart } from "../context/CartContext";
 import {
   getLocalizedProductImages,
   getLocalizedProductName,
-} from "../data/products";
+} from "../services/catalog";
 import { usePayments } from "../hooks/usePayments";
 import { useI18n } from "../i18n";
 import { axiosClient } from "../lib/axiosClient";
@@ -238,7 +238,7 @@ const CartPage = () => {
                     to={`/product/${item.productId}`}
                   >
                     <img
-                      src={getLocalizedProductImages(item.product, language)[0]}
+                      src={getLocalizedProductImages(item.product)[0]}
                       alt={getLocalizedProductName(item.product, language)}
                     />
                   </Link>
@@ -267,7 +267,7 @@ const CartPage = () => {
                     />
                   </div>
 
-                  <div className="cart-price">{formatPi(item.product.price)}</div>
+                  <div className="cart-price">{formatPi(item.product.pricePi)}</div>
                   <div className="cart-line-total">
                     {formatPi(item.lineSubtotal)}
                   </div>

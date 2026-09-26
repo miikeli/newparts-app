@@ -1,19 +1,15 @@
+import axios from "axios";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
 import { useCart } from "../context/CartContext";
 import {
-  findProductById,
-  getLocalizedFitmentNotes,
+  fetchProductById,
   getLocalizedProductCategory,
   getLocalizedProductDescription,
-  getLocalizedProductImages,
   getLocalizedProductName,
-  getLocalizedProductReturnPolicy,
-  getLocalizedProductShippingInfo,
-  getLocalizedProductSpecifications,
-  getLocalizedProductWarranty,
+  type CatalogProduct,
   type VehicleSelection,
-} from "../data/products";
+} from "../services/catalog";
 import { useI18n } from "../i18n";
 
 const tabs = [
@@ -59,10 +55,12 @@ const ProductDetailPage = () => {
   const { language, t } = useI18n();
   const { id } = useParams();
   const location = useLocation();
-  const product = id ? findProductById(id) : undefined;
   const activeVehicle = (location.state as ProductDetailLocationState | null)
     ?.activeVehicle;
   const { addItem } = useCart();
+  const [product, setProduct] = useState<CatalogProduct | null>(null);
+  const [isLoadingProduct, setIsLoadingProduct] = useState(true);
+  const [loadError, setLoadError] = useState<"not_found" | "error" | "">("");
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [activeTab, setActiveTab] = useState<ProductTab>("description");
@@ -76,26 +74,64 @@ const ProductDetailPage = () => {
   const localizedCategory = product
     ? getLocalizedProductCategory(product, language)
     : "";
-  const localizedImages = product
-    ? getLocalizedProductImages(product, language)
-    : [];
-  const localizedSpecifications = product
-    ? getLocalizedProductSpecifications(product, language)
-    : [];
-  const localizedShippingInfo = product
-    ? getLocalizedProductShippingInfo(product, language)
-    : "";
-  const localizedWarranty = product
-    ? getLocalizedProductWarranty(product, language)
-    : "";
-  const localizedReturnPolicy = product
-    ? getLocalizedProductReturnPolicy(product, language)
-    : "";
+  const productImages = product?.images.length ? product.images : [""];
 
   const stockStatus = useMemo(
     () => getStockStatus(product?.stock ?? 0, t),
     [product, t]
   );
+
+  useEffect(() => {
+    if (!id) {
+      setProduct(null);
+      setIsLoadingProduct(false);
+      setLoadError("not_found");
+      return;
+    }
+
+    let isMounted = true;
+
+    const loadProduct = async () => {
+      setIsLoadingProduct(true);
+      setLoadError("");
+      setAddedMessage("");
+      setSelectedImageIndex(0);
+
+      try {
+        const nextProduct = await fetchProductById(id);
+
+        if (isMounted) {
+          setProduct(nextProduct);
+          setQuantity(1);
+        }
+      } catch (err) {
+        if (isMounted) {
+          setProduct(null);
+          setLoadError(
+            axios.isAxiosError(err) && err.response?.status === 404
+              ? "not_found"
+              : "error",
+          );
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoadingProduct(false);
+        }
+      }
+    };
+
+    loadProduct();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [id]);
+
+  useEffect(() => {
+    if (selectedImageIndex >= productImages.length) {
+      setSelectedImageIndex(0);
+    }
+  }, [productImages.length, selectedImageIndex]);
 
   useEffect(() => {
     document.title = product
@@ -117,13 +153,30 @@ const ProductDetailPage = () => {
     );
   }, [activeVehicle, product]);
 
+  if (isLoadingProduct) {
+    return (
+      <main className="detail-page">
+        <div className="shop-container">
+          <div className="empty-state">
+            <strong>{t("common.loading")}</strong>
+            <p>{t("cart.checking")}</p>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
   if (!product) {
     return (
       <main className="detail-page">
         <div className="shop-container">
           <div className="empty-state">
             <strong>{t("product.notFound")}</strong>
-            <p>{t("product.notFoundHint")}</p>
+            <p>
+              {loadError === "error"
+                ? t("product.loadError")
+                : t("product.notFoundHint")}
+            </p>
             <Link to="/">{t("common.backToShop")}</Link>
           </div>
         </div>
@@ -132,7 +185,7 @@ const ProductDetailPage = () => {
   }
 
   const addToCart = () => {
-    addItem(product.id, quantity);
+    addItem(product, quantity);
     setAddedMessage(t("product.addedToCart"));
   };
 
@@ -160,20 +213,26 @@ const ProductDetailPage = () => {
         <section className="product-detail-grid">
           <div className="product-gallery">
             <div className="product-thumbnails">
-              {localizedImages.map((image, index) => (
+              {productImages.map((image, index) => (
                 <button
-                  key={image}
+                  key={`${image}-${index}`}
                   className={selectedImageIndex === index ? "active is-selected" : ""}
                   onClick={() => setSelectedImageIndex(index)}
                   aria-label={`${t("product.showImage")} ${index + 1}`}
                 >
-                  <img src={image} alt="" />
+                  {image && <img src={image} alt="" />}
                 </button>
               ))}
             </div>
 
             <div className="product-main-image">
-              <img src={localizedImages[selectedImageIndex]} alt={localizedName} />
+              {productImages[selectedImageIndex] ? (
+                <img src={productImages[selectedImageIndex]} alt={localizedName} />
+              ) : (
+                <div className="empty-state compact-empty">
+                  {t("common.unavailable")}
+                </div>
+              )}
             </div>
           </div>
 
@@ -222,7 +281,7 @@ const ProductDetailPage = () => {
               <div>
                 <div className="price-label">{t("common.price")}</div>
                 <div className="detail-price">
-                  <strong>{product.price}</strong>
+                  <strong>{product.pricePi}</strong>
                   <span>Test-Pi</span>
                 </div>
               </div>
@@ -297,15 +356,14 @@ const ProductDetailPage = () => {
             {activeTab === "description" && (
               <div className="description-panel">
                 <p>{localizedDescription}</p>
-                <p>{t("product.demoNotice")}</p>
               </div>
             )}
 
             {activeTab === "specification" && (
               <dl className="spec-list">
-                {localizedSpecifications.map((spec) => (
-                  <div key={spec.label}>
-                    <dt>{spec.label}</dt>
+                {product.specifications.map((spec) => (
+                  <div key={spec.key}>
+                    <dt>{spec.key}</dt>
                     <dd>{spec.value}</dd>
                   </div>
                 ))}
@@ -340,7 +398,7 @@ const ProductDetailPage = () => {
                           <td data-label={t("product.fitmentModel")}>{fitment.model}</td>
                           <td data-label={t("product.fitmentSubmodel")}>{fitment.submodel}</td>
                           <td data-label={t("product.fitmentNotes")}>
-                            {getLocalizedFitmentNotes(fitment, language)}
+                            {fitment.notes}
                           </td>
                         </tr>
                       ))}
@@ -349,9 +407,15 @@ const ProductDetailPage = () => {
                 </div>
               ))}
 
-            {activeTab === "shipping" && <p>{localizedShippingInfo}</p>}
-            {activeTab === "warranty" && <p>{localizedWarranty}</p>}
-            {activeTab === "returns" && <p>{localizedReturnPolicy}</p>}
+            {activeTab === "shipping" && (
+              <p>{product.shippingInfo || t("product.shippingInfoDefault")}</p>
+            )}
+            {activeTab === "warranty" && (
+              <p>{product.warranty || t("product.warrantyInfoDefault")}</p>
+            )}
+            {activeTab === "returns" && (
+              <p>{product.returnPolicy || t("product.returnInfoDefault")}</p>
+            )}
           </div>
         </section>
       </div>

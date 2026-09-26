@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useOutletContext, useParams } from "react-router-dom";
 import type { StoreOutletContext } from "../components/StoreShell";
-import { findProductById, getLocalizedProductName } from "../data/products";
 import { useI18n, type Language } from "../i18n";
 import { axiosClient } from "../lib/axiosClient";
 import { getPiAuthConfig } from "../lib/piAuth";
@@ -153,12 +152,7 @@ const OrderDetailPage = () => {
                 </div>
               ) : (
                 order.items.map((item, index) => {
-                  const catalogProduct = item.productId
-                    ? findProductById(item.productId)
-                    : undefined;
-                  const itemName = catalogProduct
-                    ? getLocalizedProductName(catalogProduct, language)
-                    : item.name ?? t("order.productFallback");
+                  const itemName = item.name ?? t("order.productFallback");
 
                   return (
                     <article className="order-detail-item" key={`${item.productId}-${index}`}>

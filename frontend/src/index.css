@@ -201,7 +201,18 @@ button {
 }
 
 .category-tile {
+  width: 100%;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
   text-align: center;
+}
+
+.category-tile.active .category-icon {
+  outline: 2px solid #1268d6;
+  background: #eaf1fb;
 }
 
 .category-icon {

@@ -2,40 +2,62 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useOutletContext } from "react-router-dom";
 
 import ProductCard from "../components/ProductCard";
-
+import type { StoreOutletContext } from "../components/StoreShell";
 import {
   IRRA_TOKEN_CANONICAL,
   usePayments,
 } from "../hooks/usePayments";
-import type { StoreOutletContext } from "../components/StoreShell";
+import { useI18n } from "../i18n";
 import {
-  brands,
-  categories,
+  fetchProducts,
   getLocalizedCategoryName,
   getLocalizedProductCategory,
   getLocalizedProductDescription,
-  getLocalizedProductImages,
   getLocalizedProductName,
-  products,
-  vehicleOptions,
-  type Product,
+  type CatalogBrand,
+  type CatalogCategory,
+  type CatalogProduct,
+  type CatalogProductFitment,
   type VehicleSelection,
-} from "../data/products";
-import { useI18n } from "../i18n";
+} from "../services/catalog";
 
 const uniqueValues = (values: string[]) => Array.from(new Set(values));
+
+const categoryIcons: { [categoryId: string]: string } = {
+  "brake-pads": "🧱",
+  "brake-rotors": "⚙️",
+  filters: "🧰",
+  ignition: "⚡",
+  suspension: "🔩",
+  electrical: "🔋",
+};
 
 const getVehicleLabel = (vehicle: VehicleSelection) =>
   `${vehicle.make} ${vehicle.model} ${vehicle.year} ${vehicle.submodel}`;
 
-const fitsVehicle = (product: Product, vehicle: VehicleSelection) =>
+const fitsVehicle = (product: CatalogProduct, vehicle: VehicleSelection) =>
   product.fitments.some(
     (fitment) =>
       fitment.year === vehicle.year &&
       fitment.make === vehicle.make &&
       fitment.model === vehicle.model &&
-      fitment.submodel === vehicle.submodel
+      fitment.submodel === vehicle.submodel,
   );
+
+const collectVehicleOptions = (products: CatalogProduct[]) => {
+  const byKey = new Map<string, CatalogProductFitment>();
+
+  products.forEach((product) => {
+    product.fitments.forEach((fitment) => {
+      byKey.set(
+        `${fitment.year}-${fitment.make}-${fitment.model}-${fitment.submodel}`,
+        fitment,
+      );
+    });
+  });
+
+  return Array.from(byKey.values());
+};
 
 const Shop = () => {
   const { language, t } = useI18n();
@@ -49,6 +71,12 @@ const Shop = () => {
   const [selectedModel, setSelectedModel] = useState("");
   const [selectedSubmodel, setSelectedSubmodel] = useState("");
   const [activeVehicle, setActiveVehicle] = useState<VehicleSelection | null>(null);
+  const [products, setProducts] = useState<CatalogProduct[]>([]);
+  const [allProducts, setAllProducts] = useState<CatalogProduct[]>([]);
+  const [categories, setCategories] = useState<CatalogCategory[]>([]);
+  const [brands, setBrands] = useState<CatalogBrand[]>([]);
+  const [isLoadingProducts, setIsLoadingProducts] = useState(false);
+  const [catalogError, setCatalogError] = useState(false);
 
   const { orderProduct, isLoading } = usePayments({
     isAuthenticated,
@@ -59,21 +87,98 @@ const Shop = () => {
     document.title = t("app.storeTitle");
   }, [t]);
 
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadCatalogMetadata = async () => {
+      try {
+        const response = await fetchProducts({ limit: 100, sort: "name" });
+
+        if (!isMounted) {
+          return;
+        }
+
+        setAllProducts(response.products);
+        setCategories(response.categories);
+        setBrands(response.brands);
+      } catch {
+        if (isMounted) {
+          setCatalogError(true);
+        }
+      }
+    };
+
+    loadCatalogMetadata();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadProducts = async () => {
+      setIsLoadingProducts(true);
+      setCatalogError(false);
+
+      try {
+        const response = await fetchProducts({
+          q: searchTerm.trim() || undefined,
+          categoryId: activeCategory ?? undefined,
+          brandId: activeBrand ?? undefined,
+          limit: 100,
+          sort: "name",
+        });
+
+        if (!isMounted) {
+          return;
+        }
+
+        setProducts(response.products);
+        setCategories((currentCategories) =>
+          currentCategories.length > 0 ? currentCategories : response.categories,
+        );
+        setBrands((currentBrands) =>
+          currentBrands.length > 0 ? currentBrands : response.brands,
+        );
+      } catch {
+        if (isMounted) {
+          setProducts([]);
+          setCatalogError(true);
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoadingProducts(false);
+        }
+      }
+    };
+
+    loadProducts();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [activeBrand, activeCategory, searchTerm]);
+
+  const vehicleOptions = useMemo(
+    () => collectVehicleOptions(allProducts.length > 0 ? allProducts : products),
+    [allProducts, products],
+  );
+
   const categoryTiles = useMemo(
-    () => [
-      { name: t("shop.categoryBrakePads"), icon: "🧱" },
-      { name: t("shop.categoryRotors"), icon: "⚙️" },
-      { name: t("shop.categoryFilters"), icon: "🧰" },
-      { name: t("shop.categoryShocks"), icon: "🔩" },
-      { name: t("shop.categoryBatteries"), icon: "🔋" },
-      { name: t("shop.categorySparkPlugs"), icon: "⚡" },
-    ],
-    [t],
+    () =>
+      categories.slice(0, 6).map((category) => ({
+        id: category.id,
+        name: getLocalizedCategoryName(category, language),
+        icon: categoryIcons[category.id] ?? "🔧",
+      })),
+    [categories, language],
   );
 
   const availableYears = useMemo(
     () => uniqueValues(vehicleOptions.map((vehicle) => vehicle.year)),
-    []
+    [vehicleOptions],
   );
 
   const availableMakes = useMemo(
@@ -81,9 +186,9 @@ const Shop = () => {
       uniqueValues(
         vehicleOptions
           .filter((vehicle) => vehicle.year === selectedYear)
-          .map((vehicle) => vehicle.make)
+          .map((vehicle) => vehicle.make),
       ),
-    [selectedYear]
+    [selectedYear, vehicleOptions],
   );
 
   const availableModels = useMemo(
@@ -92,11 +197,11 @@ const Shop = () => {
         vehicleOptions
           .filter(
             (vehicle) =>
-              vehicle.year === selectedYear && vehicle.make === selectedMake
+              vehicle.year === selectedYear && vehicle.make === selectedMake,
           )
-          .map((vehicle) => vehicle.model)
+          .map((vehicle) => vehicle.model),
       ),
-    [selectedMake, selectedYear]
+    [selectedMake, selectedYear, vehicleOptions],
   );
 
   const availableSubmodels = useMemo(
@@ -107,11 +212,11 @@ const Shop = () => {
             (vehicle) =>
               vehicle.year === selectedYear &&
               vehicle.make === selectedMake &&
-              vehicle.model === selectedModel
+              vehicle.model === selectedModel,
           )
-          .map((vehicle) => vehicle.submodel)
+          .map((vehicle) => vehicle.submodel),
       ),
-    [selectedMake, selectedModel, selectedYear]
+    [selectedMake, selectedModel, selectedYear, vehicleOptions],
   );
 
   const canApplyVehicle =
@@ -141,31 +246,13 @@ const Shop = () => {
     setActiveVehicle(null);
   };
 
-  const visibleProducts = useMemo(() => {
-    const normalizedSearch = searchTerm.trim().toLowerCase();
-    const normalizedBrand = activeBrand?.toLowerCase();
-
-    return products.filter((product) => {
-      const matchesSearch =
-        normalizedSearch.length === 0 ||
-        getLocalizedProductName(product, language).toLowerCase().includes(normalizedSearch) ||
-        product.brand.toLowerCase().includes(normalizedSearch) ||
-        getLocalizedProductDescription(product, language).toLowerCase().includes(normalizedSearch) ||
-        getLocalizedProductCategory(product, language).toLowerCase().includes(normalizedSearch);
-
-      const matchesCategory =
-        activeCategory === null || product.categoryId === activeCategory;
-
-      const matchesBrand =
-        normalizedBrand === undefined ||
-        product.brand.toLowerCase() === normalizedBrand;
-
-      const matchesVehicle =
-        activeVehicle === null || fitsVehicle(product, activeVehicle);
-
-      return matchesSearch && matchesCategory && matchesBrand && matchesVehicle;
-    });
-  }, [activeBrand, activeCategory, activeVehicle, language, searchTerm]);
+  const visibleProducts = useMemo(
+    () =>
+      activeVehicle === null
+        ? products
+        : products.filter((product) => fitsVehicle(product, activeVehicle)),
+    [activeVehicle, products],
+  );
 
   const hasActiveFilters =
     searchTerm.trim().length > 0 ||
@@ -182,180 +269,196 @@ const Shop = () => {
 
   return (
     <main>
-        <section className="top-search-wrap">
-          <div className="top-search">
-            <span className="search-icon">⌕</span>
-            <input
-              type="search"
-              placeholder={t("shop.searchPlaceholder")}
-              value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value)}
-            />
+      <section className="top-search-wrap">
+        <div className="top-search">
+          <span className="search-icon">⌕</span>
+          <input
+            type="search"
+            placeholder={t("shop.searchPlaceholder")}
+            value={searchTerm}
+            onChange={(event) => setSearchTerm(event.target.value)}
+          />
+        </div>
+      </section>
+
+      <section className="vehicle-section">
+        <div className="shop-container">
+          <div className="vehicle-topline">
+            <strong>{t("shop.vehicleTitle")}</strong>
+            <span>{t("shop.findByVin")}</span>
           </div>
-        </section>
 
-        <section className="vehicle-section">
-          <div className="shop-container">
-            <div className="vehicle-topline">
-              <strong>{t("shop.vehicleTitle")}</strong>
-              <span>{t("shop.findByVin")}</span>
+          <div className="vehicle-grid">
+            <select
+              value={selectedYear}
+              onChange={(event) => {
+                setSelectedYear(event.target.value);
+                setSelectedMake("");
+                setSelectedModel("");
+                setSelectedSubmodel("");
+              }}
+            >
+              <option value="" disabled>
+                {t("shop.year")}
+              </option>
+              {availableYears.map((year) => (
+                <option key={year}>{year}</option>
+              ))}
+            </select>
+
+            <select
+              value={selectedMake}
+              onChange={(event) => {
+                setSelectedMake(event.target.value);
+                setSelectedModel("");
+                setSelectedSubmodel("");
+              }}
+              disabled={selectedYear === ""}
+            >
+              <option value="" disabled>
+                {t("shop.make")}
+              </option>
+              {availableMakes.map((make) => (
+                <option key={make}>{make}</option>
+              ))}
+            </select>
+
+            <select
+              value={selectedModel}
+              onChange={(event) => {
+                setSelectedModel(event.target.value);
+                setSelectedSubmodel("");
+              }}
+              disabled={selectedMake === ""}
+            >
+              <option value="" disabled>
+                {t("shop.model")}
+              </option>
+              {availableModels.map((model) => (
+                <option key={model}>{model}</option>
+              ))}
+            </select>
+
+            <select
+              value={selectedSubmodel}
+              onChange={(event) => setSelectedSubmodel(event.target.value)}
+              disabled={selectedModel === ""}
+            >
+              <option value="" disabled>
+                {t("shop.submodel")}
+              </option>
+              {availableSubmodels.map((submodel) => (
+                <option key={submodel}>{submodel}</option>
+              ))}
+            </select>
+
+            <button
+              className="vehicle-go"
+              onClick={applyVehicleFilter}
+              disabled={!canApplyVehicle}
+            >
+              {t("shop.go")}
+            </button>
+          </div>
+
+          {activeVehicle && (
+            <div className="active-vehicle">
+              <span>{getVehicleLabel(activeVehicle)}</span>
+              <button onClick={clearVehicleFilter}>{t("shop.removeVehicle")}</button>
             </div>
+          )}
+        </div>
+      </section>
 
-            <div className="vehicle-grid">
-              <select
-                value={selectedYear}
-                onChange={(event) => {
-                  setSelectedYear(event.target.value);
-                  setSelectedMake("");
-                  setSelectedModel("");
-                  setSelectedSubmodel("");
-                }}
-              >
-                <option value="" disabled>
-                  {t("shop.year")}
-                </option>
-                {availableYears.map((year) => (
-                  <option key={year}>{year}</option>
-                ))}
-              </select>
-
-              <select
-                value={selectedMake}
-                onChange={(event) => {
-                  setSelectedMake(event.target.value);
-                  setSelectedModel("");
-                  setSelectedSubmodel("");
-                }}
-                disabled={selectedYear === ""}
-              >
-                <option value="" disabled>
-                  {t("shop.make")}
-                </option>
-                {availableMakes.map((make) => (
-                  <option key={make}>{make}</option>
-                ))}
-              </select>
-
-              <select
-                value={selectedModel}
-                onChange={(event) => {
-                  setSelectedModel(event.target.value);
-                  setSelectedSubmodel("");
-                }}
-                disabled={selectedMake === ""}
-              >
-                <option value="" disabled>
-                  {t("shop.model")}
-                </option>
-                {availableModels.map((model) => (
-                  <option key={model}>{model}</option>
-                ))}
-              </select>
-
-              <select
-                value={selectedSubmodel}
-                onChange={(event) => setSelectedSubmodel(event.target.value)}
-                disabled={selectedModel === ""}
-              >
-                <option value="" disabled>
-                  {t("shop.submodel")}
-                </option>
-                {availableSubmodels.map((submodel) => (
-                  <option key={submodel}>{submodel}</option>
-                ))}
-              </select>
-
+      <section className="category-strip">
+        <div className="shop-container">
+          <div className="category-list">
+            {categories.map((category) => (
               <button
-                className="vehicle-go"
-                onClick={applyVehicleFilter}
-                disabled={!canApplyVehicle}
+                key={category.id}
+                className={`category-tab ${
+                  activeCategory === category.id ? "active" : ""
+                }`}
+                onClick={() => setActiveCategory(category.id)}
+                aria-pressed={activeCategory === category.id}
               >
-                {t("shop.go")}
+                {getLocalizedCategoryName(category, language)}
               </button>
+            ))}
+          </div>
+
+          <div className="category-tiles">
+            {categoryTiles.map((item) => (
+              <button
+                className={`category-tile ${
+                  activeCategory === item.id ? "active" : ""
+                }`}
+                key={item.id}
+                onClick={() => setActiveCategory(item.id)}
+                aria-pressed={activeCategory === item.id}
+              >
+                <div className="category-icon">{item.icon}</div>
+                <span>{item.name}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="brands-section">
+        <div className="shop-container">
+          <div className="section-header">
+            <div>
+              <h2>{t("shop.shopByBrand")}</h2>
+              <p>{t("shop.brandSubtitle")}</p>
+            </div>
+          </div>
+
+          <div className="brand-row">
+            {brands.map((brand) => (
+              <button
+                className={`brand-card ${activeBrand === brand.id ? "active" : ""}`}
+                key={brand.id}
+                onClick={() => setActiveBrand(brand.id)}
+                aria-pressed={activeBrand === brand.id}
+              >
+                {brand.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="products-section">
+        <div className="shop-container">
+          <div className="section-header">
+            <div>
+              <h2>{t("shop.featuredProducts")}</h2>
+              <p>
+                {visibleProducts.length} {t("shop.productsCount")}
+              </p>
             </div>
 
-            {activeVehicle && (
-              <div className="active-vehicle">
-                <span>{getVehicleLabel(activeVehicle)}</span>
-                <button onClick={clearVehicleFilter}>{t("shop.removeVehicle")}</button>
-              </div>
+            {hasActiveFilters && (
+              <button className="reset-filters" onClick={resetFilters}>
+                {t("shop.resetFilters")}
+              </button>
             )}
           </div>
-        </section>
 
-        <section className="category-strip">
-          <div className="shop-container">
-            <div className="category-list">
-              {categories.map((category) => (
-                <button
-                  key={category.id}
-                  className={`category-tab ${
-                    activeCategory === category.id ? "active" : ""
-                  }`}
-                  onClick={() => setActiveCategory(category.id)}
-                  aria-pressed={activeCategory === category.id}
-                >
-                  {getLocalizedCategoryName(category, language)}
-                </button>
-              ))}
-            </div>
+          {catalogError && <p className="cart-message error">{t("shop.loadError")}</p>}
 
-            <div className="category-tiles">
-              {categoryTiles.map((item) => (
-                <div className="category-tile" key={item.name}>
-                  <div className="category-icon">{item.icon}</div>
-                  <span>{item.name}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <section className="brands-section">
-          <div className="shop-container">
-            <div className="section-header">
-              <div>
-                <h2>{t("shop.shopByBrand")}</h2>
-                <p>{t("shop.brandSubtitle")}</p>
+          <div className="products-grid">
+            {isLoadingProducts && (
+              <div className="empty-state">
+                <strong>{t("common.loading")}</strong>
+                <p>{t("cart.checking")}</p>
               </div>
-            </div>
+            )}
 
-            <div className="brand-row">
-              {brands.map((brand) => (
-                <button
-                  className={`brand-card ${activeBrand === brand ? "active" : ""}`}
-                  key={brand}
-                  onClick={() => setActiveBrand(brand)}
-                  aria-pressed={activeBrand === brand}
-                >
-                  {brand}
-                </button>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <section className="products-section">
-          <div className="shop-container">
-            <div className="section-header">
-              <div>
-                <h2>{t("shop.featuredProducts")}</h2>
-                <p>
-                  {visibleProducts.length} {t("shop.productsCount")}
-                </p>
-              </div>
-
-              {hasActiveFilters && (
-                <button className="reset-filters" onClick={resetFilters}>
-                  {t("shop.resetFilters")}
-                </button>
-              )}
-            </div>
-
-            <div className="products-grid">
-              {visibleProducts.map((product) => {
+            {!isLoadingProducts &&
+              visibleProducts.map((product) => {
                 const localizedName = getLocalizedProductName(product, language);
-                const localizedImages = getLocalizedProductImages(product, language);
 
                 return (
                   <ProductCard
@@ -364,8 +467,8 @@ const Shop = () => {
                     brand={product.brand}
                     category={getLocalizedProductCategory(product, language)}
                     description={getLocalizedProductDescription(product, language)}
-                    price={product.price}
-                    pictureURL={localizedImages[0]}
+                    price={product.pricePi}
+                    pictureURL={product.images[0] ?? ""}
                     onOpenDetail={() =>
                       navigate(`/product/${product.id}`, {
                         state: { activeVehicle },
@@ -374,20 +477,20 @@ const Shop = () => {
                     onClickBuyWithPi={() =>
                       orderProduct(
                         `Order ${localizedName}`,
-                        product.price,
+                        product.pricePi,
                         {
                           productId: product.id,
-                        }
+                        },
                       )
                     }
                     onClickBuyWithIrra={() =>
                       orderProduct(
                         `Order ${localizedName}`,
-                        product.price,
+                        product.pricePi,
                         {
                           productId: product.id,
                         },
-                        IRRA_TOKEN_CANONICAL
+                        IRRA_TOKEN_CANONICAL,
                       )
                     }
                     disabled={isLoading}
@@ -395,56 +498,56 @@ const Shop = () => {
                 );
               })}
 
-              {visibleProducts.length === 0 && (
-                <div className="empty-state">
-                  <strong>{t("shop.noProducts")}</strong>
-                  <p>
-                    {activeVehicle
-                      ? t("shop.noVehicleProducts", {
-                          vehicle: getVehicleLabel(activeVehicle),
-                        })
-                      : t("shop.noProductsHint")}
-                  </p>
-                  <button onClick={resetFilters}>{t("shop.resetFilters")}</button>
-                </div>
-              )}
-            </div>
+            {!isLoadingProducts && visibleProducts.length === 0 && (
+              <div className="empty-state">
+                <strong>{t("shop.noProducts")}</strong>
+                <p>
+                  {activeVehicle
+                    ? t("shop.noVehicleProducts", {
+                        vehicle: getVehicleLabel(activeVehicle),
+                      })
+                    : t("shop.noProductsHint")}
+                </p>
+                <button onClick={resetFilters}>{t("shop.resetFilters")}</button>
+              </div>
+            )}
           </div>
-        </section>
+        </div>
+      </section>
 
-        <section className="why-section">
-          <div className="shop-container">
-            <div className="why-card">
-              <h2>{t("shop.whyTitle")}</h2>
+      <section className="why-section">
+        <div className="shop-container">
+          <div className="why-card">
+            <h2>{t("shop.whyTitle")}</h2>
 
-              <div className="why-grid">
-                <div>
-                  <span>🚚</span>
-                  <strong>{t("shop.fastDelivery")}</strong>
-                  <p>{t("shop.fastDeliveryText")}</p>
-                </div>
+            <div className="why-grid">
+              <div>
+                <span>🚚</span>
+                <strong>{t("shop.fastDelivery")}</strong>
+                <p>{t("shop.fastDeliveryText")}</p>
+              </div>
 
-                <div>
-                  <span>🔧</span>
-                  <strong>{t("shop.vehicleFitTitle")}</strong>
-                  <p>{t("shop.vehicleFitText")}</p>
-                </div>
+              <div>
+                <span>🔧</span>
+                <strong>{t("shop.vehicleFitTitle")}</strong>
+                <p>{t("shop.vehicleFitText")}</p>
+              </div>
 
-                <div>
-                  <span>💬</span>
-                  <strong>{t("shop.supportTitle")}</strong>
-                  <p>{t("shop.supportText")}</p>
-                </div>
+              <div>
+                <span>💬</span>
+                <strong>{t("shop.supportTitle")}</strong>
+                <p>{t("shop.supportText")}</p>
+              </div>
 
-                <div>
-                  <span>π</span>
-                  <strong>{t("shop.piPaymentTitle")}</strong>
-                  <p>{t("shop.piPaymentText")}</p>
-                </div>
+              <div>
+                <span>π</span>
+                <strong>{t("shop.piPaymentTitle")}</strong>
+                <p>{t("shop.piPaymentText")}</p>
               </div>
             </div>
           </div>
-        </section>
+        </div>
+      </section>
     </main>
   );
 };

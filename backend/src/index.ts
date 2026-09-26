@@ -11,6 +11,7 @@ import env from "./environments";
 import mountAdminEndpoints from "./handlers/admin";
 import mountOrderEndpoints from "./handlers/orders";
 import mountPaymentsEndpoints from "./handlers/payments";
+import mountProductEndpoints from "./handlers/products";
 import mountUserEndpoints from "./handlers/users";
 import {
   seedProductsCollection,
@@ -166,6 +167,11 @@ const adminRouter = express.Router();
 mountAdminEndpoints(adminRouter);
 app.use("/admin", adminRouter);
 
+// Public product catalog endpoints under /products:
+const productRouter = express.Router();
+mountProductEndpoints(productRouter);
+app.use("/products", productRouter);
+
 // Hello World page to check everything works:
 app.get("/", async (_, res) => {
   res.status(200).send({ message: "Hello, World!" });
@@ -197,6 +203,8 @@ const start = async () => {
     await productCollection.createIndex({ brand: 1 });
     await productCollection.createIndex({ categoryId: 1 });
     await productCollection.createIndex({ brandId: 1 });
+    await productCollection.createIndex({ active: 1 });
+    await productCollection.createIndex({ deletedAt: 1 });
     await categoryCollection.createIndex({ id: 1 }, { unique: true });
     await categoryCollection.createIndex(
       { slug: 1 },

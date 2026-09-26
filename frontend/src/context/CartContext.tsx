@@ -6,15 +6,15 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { findProductById } from "../data/products";
+import type { CatalogProduct } from "../services/catalog";
 
 type CartLine = {
   productId: string;
   quantity: number;
+  product: CatalogProduct;
 };
 
 export type CartItem = CartLine & {
-  product: NonNullable<ReturnType<typeof findProductById>>;
   lineSubtotal: number;
 };
 
@@ -22,7 +22,7 @@ type CartContextValue = {
   items: CartItem[];
   itemCount: number;
   subtotal: number;
-  addItem: (productId: string, quantity?: number) => void;
+  addItem: (product: CatalogProduct, quantity?: number) => void;
   removeItem: (productId: string) => void;
   updateQuantity: (productId: string, quantity: number) => void;
   clearCart: () => void;
@@ -36,24 +36,27 @@ const clampQuantity = (quantity: number, max: number) =>
 export const CartProvider = ({ children }: { children: ReactNode }) => {
   const [lines, setLines] = useState<CartLine[]>([]);
 
-  const addItem = useCallback((productId: string, quantity = 1) => {
-    const product = findProductById(productId);
+  const addItem = useCallback((product: CatalogProduct, quantity = 1) => {
     if (!product || product.stock <= 0) {
       return;
     }
 
     setLines((currentLines) => {
-      const existingLine = currentLines.find((line) => line.productId === productId);
+      const existingLine = currentLines.find((line) => line.productId === product.id);
       const requestedQuantity = clampQuantity(quantity, product.stock);
 
       if (!existingLine) {
-        return [...currentLines, { productId, quantity: requestedQuantity }];
+        return [
+          ...currentLines,
+          { productId: product.id, product, quantity: requestedQuantity },
+        ];
       }
 
       return currentLines.map((line) =>
-        line.productId === productId
+        line.productId === product.id
           ? {
               ...line,
+              product,
               quantity: clampQuantity(line.quantity + requestedQuantity, product.stock),
             }
           : line
@@ -68,15 +71,10 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const updateQuantity = useCallback((productId: string, quantity: number) => {
-    const product = findProductById(productId);
-    if (!product) {
-      return;
-    }
-
     setLines((currentLines) =>
       currentLines.map((line) =>
         line.productId === productId
-          ? { ...line, quantity: clampQuantity(quantity, product.stock) }
+          ? { ...line, quantity: clampQuantity(quantity, line.product.stock) }
           : line
       )
     );
@@ -87,20 +85,10 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const value = useMemo<CartContextValue>(() => {
-    const items = lines.flatMap((line) => {
-      const product = findProductById(line.productId);
-      if (!product) {
-        return [];
-      }
-
-      return [
-        {
-          ...line,
-          product,
-          lineSubtotal: product.price * line.quantity,
-        },
-      ];
-    });
+    const items = lines.map((line) => ({
+      ...line,
+      lineSubtotal: line.product.pricePi * line.quantity,
+    }));
 
     return {
       items,
